@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Aesthetic Music Player</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+    <div class="background-glow" id="bg-glow"></div>
+
+    <main class="player-card">
+        <!-- Header -->
+        <header class="player-header">
+            <span class="badge" id="category-badge">2026 HITS</span>
+            <h1 id="song-title">Select A Track</h1>
+            <p id="artist-name">Artist Name</p>
+        </header>
+
+        <!-- Disc Container -->
+        <div class="disc-container">
+            <div id="disc" class="disc">
+                <div class="disc-center"></div>
+            </div>
+        </div>
+
+        <!-- Status / Subtitle -->
+        <div class="status-box">
+            <p id="lyrics-content">Ready for aesthetic beats...</p>
+        </div>
+
+        <!-- Progress Bar -->
+        <div class="progress-section">
+            <div class="time-info">
+                <span id="current-time">0:00</span>
+                <span id="total-duration">0:00</span>
+            </div>
+            <div class="progress-container" id="progress-container">
+                <div class="progress-bar" id="progress"></div>
+            </div>
+        </div>
+
+        <!-- Playback Controls -->
+        <div class="controls">
+            <button id="prev-btn" class="control-btn" title="Previous">⏮</button>
+            <button id="play-btn" class="control-btn play-main" title="Play/Pause">▶</button>
+            <button id="next-btn" class="control-btn" title="Next">⏭</button>
+        </div>
+
+        <!-- Category Selector -->
+        <div class="category-tabs">
+            <button class="cat-btn active" id="btn-2026" onclick="switchCategory('2026', this)">2026 Hits</button>
+            <button class="cat-btn" id="btn-90s" onclick="switchCategory('90s', this)">90s Classics</button>
+        </div>
+
+        <!-- Playlist -->
+        <section class="vertical-playlist-wrapper">
+            <div class="playlist-header">
+                <span>PLAYLIST</span>
+                <span id="track-count">0 Songs</span>
+            </div>
+            <div class="vertical-playlist" id="playlist-view"></div>
+        </section>
+
+        <!-- Audio Element -->
+        <audio id="audio" preload="metadata"></audio>
+    </main>
+
+    <script src="script.js"></script>
+</body>
+</html>
