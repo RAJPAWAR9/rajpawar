@@ -20,10 +20,8 @@ const playlist = {
     { title: "Dhinka Chika", artist: "Amrita Kak, Mika Singh", file: "Dhinka Chika - Amrita Kak, Mika Singh" },
     { title: "Dil Ka Jo Haal Hai", artist: "Abhijeet, Shreya Ghoshal", file: "Dil Ka Jo Haal Hai - Abhijeet, Shreya Ghoshal" },
     { title: "Dilliwaali Girlfriend", artist: "Sunidhi Chauhan, Arijit Singh", file: "Dilliwaali Girlfriend" },
-    { title: "Dope Shope", artist: "Deep Money, Yo Yo Honey Singh", file: "dobshob honney" },
     { title: "Fevicol Se", artist: "Mamta Sharma, Wajid", file: "Fevicol Se" },
     { title: "Ghagra", artist: "Vishal Dadlani, Rekha Bhardwaj", file: "Ghagra - Vishal Dadlani, Rekha Bhardwaj" },
-    { title: "Goli Maar Bheje", artist: "DJ Song Roadshow Mix", file: "Goli Maar Bheje }" },
     { title: "Gulabi Sadi", artist: "Sanju Rathod, G-SPXRK", file: "Gulabi Sadi - Sanju Rathod, G-SPXRK" },
     { title: "Hud Hud Dabangg", artist: "Sukhwinder Singh, Wajid", file: "Hud Hud Dabangg" },
     { title: "Hum Pyaar Karne", artist: "Shashwat Sachdev, Atsana", file: "Hum Pyaar Kame" },
@@ -41,11 +39,9 @@ const playlist = {
     { title: "Party All Night", artist: "Yo Yo Honey Singh", file: "Party All Night - Yo Yo Honey Singh" },
     { title: "Shaky", artist: "Sanju Rathod", file: "Shaky - Sanju Rathod" },
     { title: "Shararat", artist: "Shashwat Sachdev, Madhubanti", file: "Shararat" },
-    { title: "Sheila Ki Jawani", artist: "Sunidhi Chauhan, Vishal Dadlani", file: "Sheila Ki Jawani" },
     { title: "Tera Rastaa", artist: "Anusha Mani, Amitabh Bhattacharya", file: "Tera Rastaa" },
     { title: "Tere Liye", artist: "Atif Aslam", file: "Tere Liye - Atif Aslam" },
     { title: "Tinku Jiya", artist: "Mamta Sharma, Javed Ali", file: "Tinku Jiya" },
-    { title: "Ud-daa Punjab", artist: "Udta Punjab", file: "Ud-daa Punjab" },
     { title: "Vazan", artist: "SAMBATA, Karan Kanchan", file: "Vazan" },
     { title: "Yeh Dil Deewana", artist: "Sonu Nigam, Hema Sardesai", file: "Yeh Dil Deewana" }
   ],
@@ -74,12 +70,9 @@ let displayedList = [];
 
 let activeAudio = new Audio();
 let nextAudio = new Audio();
-activeAudio.crossOrigin = "anonymous";
-nextAudio.crossOrigin = "anonymous";
 
 let globalVolume = 1;
 
-// Web Audio API for Beat Sync Glow
 let audioCtx;
 let analyser;
 let sourceNode;
@@ -147,16 +140,20 @@ function loadAndPlaySong(index) {
   
   activeAudio.pause();
   activeAudio = new Audio();
-  activeAudio.crossOrigin = "anonymous";
   activeAudio.src = buildUrl(folderCat, song.file, '.m4a');
   activeAudio.volume = globalVolume;
   
   setupAudioEvents(activeAudio);
   
-  activeAudio.play().then(() => {
-    document.getElementById('play-btn').textContent = '❚❚';
-    initAudioVisualizer(activeAudio);
-  }).catch(e => console.log(e));
+  const playPromise = activeAudio.play();
+  if (playPromise !== undefined) {
+    playPromise.then(() => {
+      document.getElementById('play-btn').textContent = '❚❚';
+      initAudioVisualizer(activeAudio);
+    }).catch(() => {
+      document.getElementById('play-btn').textContent = '▶';
+    });
+  }
 
   renderPlaylist(displayedList);
 }
@@ -172,7 +169,6 @@ function triggerCrossfade() {
 
   const folderCat = getSongFolderCategory(nextSong);
   nextAudio = new Audio();
-  nextAudio.crossOrigin = "anonymous";
   nextAudio.src = buildUrl(folderCat, nextSong.file, '.m4a');
   nextAudio.volume = 0;
 
@@ -242,7 +238,6 @@ function formatTime(seconds) {
   return `${mins}:${secs < 10 ? '0' : ''}${secs}`;
 }
 
-// Beat Sync Glowing Visualizer Engine
 function initAudioVisualizer(audioElement) {
   try {
     if (!audioCtx) {
@@ -261,9 +256,7 @@ function initAudioVisualizer(audioElement) {
     analyser.connect(audioCtx.destination);
 
     startGlowSync();
-  } catch (e) {
-    // MediaElementSource fallback
-  }
+  } catch (e) {}
 }
 
 function startGlowSync() {
@@ -271,7 +264,7 @@ function startGlowSync() {
 
   const bufferLength = analyser.frequencyBinCount;
   const dataArray = new Uint8Array(bufferLength);
-  const targetElem = document.querySelector('.main-card') || document.body;
+  const targetElem = document.getElementById('glow-wrapper');
 
   function updateGlow() {
     animationFrameId = requestAnimationFrame(updateGlow);
@@ -283,10 +276,12 @@ function startGlowSync() {
     }
     let average = sum / bufferLength;
 
-    let glowRadius = Math.min(70, 15 + average * 0.35);
+    let glowRadius = Math.min(35, 10 + average * 0.2);
     let hue = (Date.now() / 25) % 360;
 
-    targetElem.style.boxShadow = `0 0 ${glowRadius}px hsl(${hue}, 100%, 50%), inset 0 0 ${glowRadius / 2}px hsl(${hue}, 100%, 50%)`;
+    if (targetElem) {
+      targetElem.style.boxShadow = `0 0 ${glowRadius}px hsl(${hue}, 100%, 50%)`;
+    }
   }
 
   if (animationFrameId) cancelAnimationFrame(animationFrameId);
@@ -295,9 +290,6 @@ function startGlowSync() {
 
 document.addEventListener('DOMContentLoaded', () => {
   displayedList = getActiveList();
-
-  const btnTrending = document.getElementById('btn-2026');
-  if (btnTrending) btnTrending.textContent = "Trending Hits";
 
   const catButtons = {
     'btn-2026': 'Trending',
@@ -314,7 +306,10 @@ document.addEventListener('DOMContentLoaded', () => {
         currentSongIndex = 0;
         document.querySelectorAll('.cat-btn').forEach(b => b.classList.remove('active'));
         e.target.classList.add('active');
-        document.getElementById('search-input').value = '';
+        
+        const searchInput = document.getElementById('search-input');
+        if (searchInput) searchInput.value = '';
+        
         displayedList = getActiveList();
         loadAndPlaySong(currentSongIndex);
       };
@@ -390,5 +385,5 @@ document.addEventListener('DOMContentLoaded', () => {
     };
   }
 
-  loadAndPlaySong(currentSongIndex);
+  renderPlaylist();
 });
