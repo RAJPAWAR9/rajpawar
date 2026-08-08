@@ -68,6 +68,8 @@ let displayedList = [];
 
 let playerA = new Audio();
 let playerB = new Audio();
+playerA.crossOrigin = "anonymous";
+playerB.crossOrigin = "anonymous";
 
 let activeAudio = playerA;
 let nextAudio = playerB;
@@ -75,42 +77,76 @@ let nextAudio = playerB;
 let globalVolume = 1;
 let crossfadeTime = 10;
 let crossfadeStarted = false;
+let isKaraokeActive = false;
 
-let audioCtx, analyser, srcNodeA, srcNodeB;
+// Web Audio API Elements
+let audioCtx, analyser, eqFilters = [], vocalFilter;
+let srcNodeA, srcNodeB;
 let canvas, ctx;
 
-function initBeatSync() {
+// Initialize Web Audio Graph
+function initAudioEngine() {
   if (audioCtx) return;
   try {
     audioCtx = new (window.AudioContext || window.webkitAudioContext)();
     analyser = audioCtx.createAnalyser();
-    analyser.fftSize = 64;
+    analyser.fftSize = 128;
 
+    // Create 5-Band Equalizer Filters
+    const eqFrequencies = [60, 250, 1000, 4000, 16000];
+    eqFilters = eqFrequencies.map(freq => {
+      const filter = audioCtx.createBiquadFilter();
+      filter.type = freq <= 250 ? 'lowshelf' : freq >= 4000 ? 'highshelf' : 'peaking';
+      filter.frequency.value = freq;
+      filter.gain.value = 0;
+      return filter;
+    });
+
+    // Create Vocal Cut Filter for Karaoke Mode
+    vocalFilter = audioCtx.createBiquadFilter();
+    vocalFilter.type = 'notch';
+    vocalFilter.frequency.value = 1000;
+    vocalFilter.Q.value = 3;
+
+    // Connect Audio Source Nodes
     srcNodeA = audioCtx.createMediaElementSource(playerA);
     srcNodeB = audioCtx.createMediaElementSource(playerB);
 
-    srcNodeA.connect(analyser);
-    srcNodeB.connect(analyser);
+    // Chain Filter Graph
+    let lastNodeA = srcNodeA;
+    let lastNodeB = srcNodeB;
 
+    eqFilters.forEach(filter => {
+      lastNodeA.connect(filter);
+      lastNodeB.connect(filter);
+      lastNodeA = filter;
+      lastNodeB = filter;
+    });
+
+    lastNodeA.connect(analyser);
     analyser.connect(audioCtx.destination);
-    
-    startBeatSyncAnimation();
+
+    startVisualizer();
   } catch (e) {
-    console.warn("Audio Context init warning (CORS or Autoplay):", e);
+    console.warn("Audio Context init warning:", e);
   }
 }
 
-function startBeatSyncAnimation() {
+function startVisualizer() {
   canvas = document.getElementById('ambient-canvas');
-  if (canvas) {
-    ctx = canvas.getContext('2d');
-    canvas.width = window.innerWidth;
-    canvas.height = window.innerHeight;
-  }
+  if (!canvas) return;
+  ctx = canvas.getContext('2d');
 
-  const albumArt = document.getElementById('album-art-box');
+  function resizeCanvas() {
+    canvas.width = window.innerWidth * window.devicePixelRatio;
+    canvas.height = window.innerHeight * window.devicePixelRatio;
+  }
+  resizeCanvas();
+  window.addEventListener('resize', resizeCanvas);
+
   const bufferLength = analyser ? analyser.frequencyBinCount : 0;
   const dataArray = new Uint8Array(bufferLength);
+  const albumArt = document.getElementById('album-art-box');
 
   function renderFrame() {
     requestAnimationFrame(renderFrame);
@@ -120,57 +156,37 @@ function startBeatSyncAnimation() {
     }
 
     let bassSum = 0;
-    const bassBins = Math.floor(bufferLength * 0.3) || 1;
-    for (let i = 0; i < bassBins; i++) {
-      bassSum += dataArray[i] || 0;
-    }
-    let bassAvg = bassSum / bassBins;
-
-    let totalSum = 0;
-    for (let i = 0; i < bufferLength; i++) {
-      totalSum += dataArray[i] || 0;
-    }
-    let totalAvg = totalSum / (bufferLength || 1);
+    for (let i = 0; i < 5; i++) bassSum += dataArray[i] || 0;
+    let bassAvg = bassSum / 5;
 
     if (albumArt && !activeAudio.paused) {
-      let glowRadius = 15 + (bassAvg / 255) * 45;
-      let scaleFactor = 1 + (bassAvg / 255) * 0.06;
-      let hue = (Date.now() / 20) % 360;
-
-      albumArt.style.boxShadow = `0 0 ${glowRadius}px hsla(${hue}, 100%, 50%, 0.8), 0 0 ${glowRadius * 1.8}px hsla(${hue + 40}, 100%, 50%, 0.4)`;
+      let scaleFactor = 1 + (bassAvg / 255) * 0.08;
+      let glowRadius = 15 + (bassAvg / 255) * 35;
       albumArt.style.transform = `scale(${scaleFactor})`;
+      albumArt.style.boxShadow = `0 0 ${glowRadius}px rgba(0, 242, 254, 0.6)`;
     } else if (albumArt) {
-      albumArt.style.boxShadow = '0 8px 32px rgba(0,0,0,0.4)';
       albumArt.style.transform = 'scale(1)';
+      albumArt.style.boxShadow = 'none';
     }
 
-    if (ctx && canvas) {
-      ctx.clearRect(0, 0, canvas.width, canvas.height);
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    if (!activeAudio.paused) {
+      let pulseRadius = (canvas.width * 0.2) + (bassAvg / 255) * (canvas.width * 0.3);
+      let gradient = ctx.createRadialGradient(
+        canvas.width / 2, canvas.height / 2, 10,
+        canvas.width / 2, canvas.height / 2, pulseRadius
+      );
+      gradient.addColorStop(0, `rgba(0, 242, 254, ${0.15 + (bassAvg / 255) * 0.25})`);
+      gradient.addColorStop(0.5, `rgba(121, 40, 202, ${0.1 + (bassAvg / 255) * 0.15})`);
+      gradient.addColorStop(1, 'rgba(0, 0, 0, 0)');
 
-      if (!activeAudio.paused) {
-        let hue1 = (Date.now() / 25) % 360;
-        let hue2 = (hue1 + 80) % 360;
-        let pulseRadius = 100 + (bassAvg / 255) * (canvas.width * 0.4);
-
-        let gradient = ctx.createRadialGradient(
-          canvas.width / 2, canvas.height / 2, 20,
-          canvas.width / 2, canvas.height / 2, pulseRadius
-        );
-
-        gradient.addColorStop(0, `hsla(${hue1}, 100%, 50%, ${0.2 + (bassAvg / 255) * 0.3})`);
-        gradient.addColorStop(0.6, `hsla(${hue2}, 100%, 40%, ${0.1 + (totalAvg / 255) * 0.15})`);
-        gradient.addColorStop(1, 'rgba(0,0,0,0)');
-
-        ctx.fillStyle = gradient;
-        ctx.fillRect(0, 0, canvas.width, canvas.height);
-      }
+      ctx.fillStyle = gradient;
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
     }
   }
-
   renderFrame();
 }
 
-// Build URL with Format Fallback (.m4a & .mp3)
 function buildUrl(song, extension = "m4a") {
   const is90s = playlist["90s"].some(s => s.file === song.file);
   const basePath = is90s ? BASE_FOLDER_90S : BASE_FOLDER_2026;
@@ -215,33 +231,25 @@ function renderPlaylist(songsToRender = null) {
 }
 
 function playAudioWithFallback(audioElement, song) {
-  const m4aUrl = buildUrl(song, "m4a");
-  audioElement.src = m4aUrl;
-
-  const playPromise = audioElement.play();
-
-  if (playPromise !== undefined) {
-    playPromise.then(() => {
+  audioElement.src = buildUrl(song, "m4a");
+  audioElement.play().then(() => {
+    updatePlaybackUI(true);
+    updateMediaSession(song);
+  }).catch(() => {
+    audioElement.src = buildUrl(song, "mp3");
+    audioElement.play().then(() => {
       updatePlaybackUI(true);
-    }).catch(() => {
-      // If .m4a fails, fallback to .mp3 automatically
-      const mp3Url = buildUrl(song, "mp3");
-      audioElement.src = mp3Url;
-      audioElement.play().then(() => {
-        updatePlaybackUI(true);
-      }).catch((err) => {
-        console.error("Failed to play song with both .m4a and .mp3 formats:", err);
-        updatePlaybackUI(false);
-      });
+      updateMediaSession(song);
+    }).catch(err => {
+      console.error("Playback error:", err);
+      updatePlaybackUI(false);
     });
-  }
+  });
 }
 
 function loadAndPlaySong(index, isManualTrigger = true) {
-  initBeatSync();
-  if (audioCtx && audioCtx.state === 'suspended') {
-    audioCtx.resume();
-  }
+  initAudioEngine();
+  if (audioCtx && audioCtx.state === 'suspended') audioCtx.resume();
 
   const list = displayedList.length > 0 ? displayedList : getActiveList();
   if (!list[index]) return;
@@ -253,7 +261,6 @@ function loadAndPlaySong(index, isManualTrigger = true) {
 
   if (isManualTrigger) {
     crossfadeStarted = false;
-    
     playerA.pause();
     playerB.pause();
     playerA.currentTime = 0;
@@ -261,7 +268,6 @@ function loadAndPlaySong(index, isManualTrigger = true) {
 
     activeAudio = playerA;
     nextAudio = playerB;
-
     activeAudio.volume = globalVolume;
     activeAudio.playbackRate = parseFloat(document.getElementById('speed-slider')?.value || 1);
 
@@ -275,93 +281,30 @@ function loadAndPlaySong(index, isManualTrigger = true) {
   renderPlaylist(displayedList);
 }
 
-function handleCrossfadeCheck() {
-  if (crossfadeStarted || !activeAudio.duration || crossfadeTime <= 0) return;
+function updateMediaSession(song) {
+  if ('mediaSession' in navigator) {
+    navigator.mediaSession.metadata = new MediaMetadata({
+      title: song.title,
+      artist: song.artist,
+      album: 'AURA Music OS 2026'
+    });
 
-  const remainingTime = activeAudio.duration - activeAudio.currentTime;
-
-  if (remainingTime <= crossfadeTime && remainingTime > 0) {
-    crossfadeStarted = true;
-
-    const list = displayedList.length > 0 ? displayedList : getActiveList();
-    const nextIndex = (currentSongIndex + 1) % list.length;
-    currentSongIndex = nextIndex;
-
-    const nextSong = list[nextIndex];
-
-    nextAudio.volume = 0;
-    nextAudio.playbackRate = parseFloat(document.getElementById('speed-slider')?.value || 1);
-    playAudioWithFallback(nextAudio, nextSong);
-
-    const intervalTime = 100;
-    const steps = (crossfadeTime * 1000) / intervalTime;
-    const volumeStep = globalVolume / steps;
-
-    let currentStep = 0;
-    const fadeTimer = setInterval(() => {
-      currentStep++;
-
-      if (activeAudio.volume > volumeStep) {
-        activeAudio.volume = Math.max(0, activeAudio.volume - volumeStep);
-      } else {
-        activeAudio.volume = 0;
-      }
-
-      if (nextAudio.volume < globalVolume - volumeStep) {
-        nextAudio.volume = Math.min(globalVolume, nextAudio.volume + volumeStep);
-      } else {
-        nextAudio.volume = globalVolume;
-      }
-
-      if (currentStep >= steps) {
-        clearInterval(fadeTimer);
-        activeAudio.pause();
-        activeAudio.currentTime = 0;
-        loadAndPlaySong(currentSongIndex, false);
-      }
-    }, intervalTime);
+    navigator.mediaSession.setActionHandler('play', () => { activeAudio.play(); updatePlaybackUI(true); });
+    navigator.mediaSession.setActionHandler('pause', () => { activeAudio.pause(); updatePlaybackUI(false); });
+    navigator.mediaSession.setActionHandler('previoustrack', () => { document.getElementById('prev-btn').click(); });
+    navigator.mediaSession.setActionHandler('nexttrack', () => { document.getElementById('next-btn').click(); });
   }
 }
 
-function attachAudioEvents(audioPlayer) {
-  audioPlayer.addEventListener('timeupdate', () => {
-    if (audioPlayer === activeAudio) {
-      if (activeAudio.duration) {
-        const percent = (activeAudio.currentTime / activeAudio.duration) * 100;
-        const progress = document.getElementById('progress');
-        if (progress) progress.style.width = `${percent}%`;
-        
-        document.getElementById('current-time').textContent = formatTime(activeAudio.currentTime);
-        document.getElementById('total-duration').textContent = formatTime(activeAudio.duration);
-      }
-      handleCrossfadeCheck();
-    }
-  });
-
-  audioPlayer.addEventListener('ended', () => {
-    if (audioPlayer === activeAudio && !crossfadeStarted) {
-      const list = displayedList.length > 0 ? displayedList : getActiveList();
-      currentSongIndex = (currentSongIndex + 1) % list.length;
-      loadAndPlaySong(currentSongIndex, true);
-    }
-  });
-}
-
-attachAudioEvents(playerA);
-attachAudioEvents(playerB);
-
 function updatePlaybackUI(isPlaying) {
   const playBtn = document.getElementById('play-btn');
-  const albumArt = document.getElementById('album-art-box');
   const waveBars = document.getElementById('wave-bars');
 
   if (isPlaying) {
     if (playBtn) playBtn.textContent = '❚❚';
-    if (albumArt) albumArt.classList.add('playing');
     if (waveBars) waveBars.classList.add('playing');
   } else {
     if (playBtn) playBtn.textContent = '▶';
-    if (albumArt) albumArt.classList.remove('playing');
     if (waveBars) waveBars.classList.remove('playing');
   }
 }
@@ -376,44 +319,33 @@ function formatTime(seconds) {
 document.addEventListener('DOMContentLoaded', () => {
   displayedList = getActiveList();
 
-  const searchInput = document.getElementById('search-input');
-  if (searchInput) {
-    searchInput.addEventListener('input', (e) => {
-      const query = e.target.value.toLowerCase().trim();
-      const filtered = getActiveList().filter(song => 
-        song.title.toLowerCase().includes(query) || 
-        song.artist.toLowerCase().includes(query)
-      );
-      renderPlaylist(filtered);
-    });
-  }
-
-  const catButtons = {
-    'btn-2026': 'Trending',
-    'btn-90s': '90s',
-    'btn-3d': '3D Audio',
-    'btn-all': 'All'
-  };
-
-  Object.keys(catButtons).forEach(id => {
-    const btn = document.getElementById(id);
-    if (btn) {
-      btn.onclick = (e) => {
-        currentCategory = catButtons[id];
-        currentSongIndex = 0;
-        document.querySelectorAll('.cat-btn').forEach(b => b.classList.remove('active'));
-        e.target.classList.add('active');
-        displayedList = getActiveList();
-        loadAndPlaySong(currentSongIndex, true);
-      };
-    }
+  // Search Logic
+  document.getElementById('search-input')?.addEventListener('input', (e) => {
+    const query = e.target.value.toLowerCase().trim();
+    const filtered = getActiveList().filter(song => 
+      song.title.toLowerCase().includes(query) || 
+      song.artist.toLowerCase().includes(query)
+    );
+    renderPlaylist(filtered);
   });
 
+  // Category Buttons
+  const catButtons = { 'btn-2026': 'Trending', 'btn-90s': '90s', 'btn-3d': '3D Audio', 'btn-all': 'All' };
+  Object.keys(catButtons).forEach(id => {
+    document.getElementById(id)?.addEventListener('click', (e) => {
+      currentCategory = catButtons[id];
+      currentSongIndex = 0;
+      document.querySelectorAll('.cat-btn').forEach(b => b.classList.remove('active'));
+      e.target.classList.add('active');
+      displayedList = getActiveList();
+      loadAndPlaySong(currentSongIndex, true);
+    });
+  });
+
+  // Playback Control Triggers
   document.getElementById('play-btn').onclick = () => {
-    initBeatSync();
-    if (audioCtx && audioCtx.state === 'suspended') {
-      audioCtx.resume();
-    }
+    initAudioEngine();
+    if (audioCtx && audioCtx.state === 'suspended') audioCtx.resume();
 
     if (activeAudio.paused) {
       activeAudio.play();
@@ -437,6 +369,7 @@ document.addEventListener('DOMContentLoaded', () => {
     loadAndPlaySong(currentSongIndex, true);
   };
 
+  // Timeline Progress Seek
   document.getElementById('progress-container').onclick = (e) => {
     const rect = e.currentTarget.getBoundingClientRect();
     const clickX = e.clientX - rect.left;
@@ -445,22 +378,43 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   };
 
-  const crossSlider = document.getElementById('crossfade-slider');
-  if (crossSlider) {
-    crossSlider.oninput = (e) => {
-      crossfadeTime = parseInt(e.target.value);
-      const crossVal = document.getElementById('crossfade-val');
-      if (crossVal) crossVal.textContent = `${crossfadeTime}s`;
-    };
-  }
+  // Audio Timers
+  activeAudio.addEventListener('timeupdate', () => {
+    if (activeAudio.duration) {
+      const percent = (activeAudio.currentTime / activeAudio.duration) * 100;
+      document.getElementById('progress').style.width = `${percent}%`;
+      document.getElementById('current-time').textContent = formatTime(activeAudio.currentTime);
+      document.getElementById('total-duration').textContent = formatTime(activeAudio.duration);
+    }
+  });
 
-  const volSlider = document.getElementById('volume-slider');
-  if (volSlider) {
-    volSlider.oninput = (e) => {
-      globalVolume = parseFloat(e.target.value);
-      activeAudio.volume = globalVolume;
+  // Equalizer Drawer Toggle & Presets
+  document.getElementById('eq-toggle-btn').onclick = () => {
+    document.getElementById('eq-panel').classList.toggle('hidden');
+  };
+
+  document.querySelectorAll('.eq-band-slider').forEach(slider => {
+    slider.oninput = (e) => {
+      const bandIndex = parseInt(e.target.dataset.band);
+      if (eqFilters[bandIndex]) {
+        eqFilters[bandIndex].gain.value = parseFloat(e.target.value);
+      }
     };
-  }
+  });
+
+  // Karaoke Mode Toggle
+  document.getElementById('karaoke-btn').onclick = (e) => {
+    isKaraokeActive = !isKaraokeActive;
+    if (isKaraokeActive) {
+      e.target.textContent = "🎤 Karaoke: ON";
+      e.target.classList.add('active');
+      eqFilters[2].gain.value = -12; // Lower vocal mid-frequencies
+    } else {
+      e.target.textContent = "🎤 Karaoke: OFF";
+      e.target.classList.remove('active');
+      eqFilters[2].gain.value = 0;
+    }
+  };
 
   renderPlaylist();
 });
