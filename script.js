@@ -8,59 +8,32 @@ const playlist = {
     { title: "Apna Time Aayega", artist: "Ranveer Singh, DIVINE", file: "Apna Time Aayega - Ranveer Singh, DIVINE" },
     { title: "Badtameez Dil", artist: "Benny Dayal, Shefali Alvares", file: "Badtameez Dil - Benny Dayal, Shefali Alvares" },
     { title: "Balam Pichkari", artist: "Vishal Dadlani, Shalmali Kholgade", file: "Balam Pichkari" },
-    { title: "Balma", artist: "Shriram Iyer, Shreya Ghoshal", file: "Balma - Shriram Iyer, Shreya Ghoshal" },
-    { title: "Beedi", artist: "Sukhwinder Singh, Sunidhi Chauhan", file: "Beedi - Sukhwinder Singh, Sunidhi Chauhan" },
+    { title: "Balma", artist: "Shriram Iyer, Shreya Ghoshal", file: "Balma - Shriram Iyer, Shriram Ghoshal" },
     { title: "Blue Eyes", artist: "Yo Yo Honey Singh", file: "Blue Eyes - Yo Yo Honey Singh" },
-    { title: "Chaar Botal Vodka", artist: "Yo Yo Honey Singh", file: "Chaar Botal Vodka - Yo Yo Honey Singh" },
-    { title: "Character Dheela", artist: "Neeraj Shridhar, Amrita Kak", file: "Character Dheela" },
-    { title: "Chikni Chameli", artist: "Shreya Ghoshal", file: "Chikni Chameli - Shreya Ghoshal" },
-    { title: "Chinta Ta Ta Chita Chita", artist: "Mika Singh, Wajid", file: "Chinta Ta Ta Chita Chita - Mika Singh, Wajid" },
-    { title: "Dagabaaz Re", artist: "Rahat Fateh Ali Khan, Shreya Ghoshal", file: "Dagabaaz Re" },
-    { title: "Desi Kalakaar", artist: "Yo Yo Honey Singh", file: "Desi Kalakaar - Yo Yo Honey Singh" },
-    { title: "Dhinka Chika", artist: "Amrita Kak, Mika Singh", file: "Dhinka Chika - Amrita Kak, Mika Singh" },
-    { title: "Dil Ka Jo Haal Hai", artist: "Abhijeet, Shreya Ghoshal", file: "Dil Ka Jo Haal Hai - Abhijeet, Shreya Ghoshal" },
-    { title: "Dilliwaali Girlfriend", artist: "Sunidhi Chauhan, Arijit Singh", file: "Dilliwaali Girlfriend" },
-    { title: "Fevicol Se", artist: "Mamta Sharma, Wajid", file: "Fevicol Se" },
-    { title: "Ghagra", artist: "Vishal Dadlani, Rekha Bhardwaj", file: "Ghagra - Vishal Dadlani, Rekha Bhardwaj" },
     { title: "Gulabi Sadi", artist: "Sanju Rathod, G-SPXRK", file: "Gulabi Sadi - Sanju Rathod, G-SPXRK" },
-    { title: "Hud Hud Dabangg", artist: "Sukhwinder Singh, Wajid", file: "Hud Hud Dabangg" },
-    { title: "Hum Pyaar Karne", artist: "Shashwat Sachdev, Atsana", file: "Hum Pyaar Kame" },
-    { title: "Jadoo Ki Jhappi", artist: "Mika Singh, Neha Kakkar", file: "Jadoo Ki Jhappi - Mika Singh, Neha Kakkar" },
-    { title: "Jungle Hai", artist: "Kumar Sanu, Hema Sardesai", file: "Jungle Hai" },
-    { title: "Lallati Bhandar", artist: "Ajay-Atul", file: "Lallati Bhandar - Ajay-Atul" },
-    { title: "Love Dose", artist: "Yo Yo Honey Singh", file: "Love Dose - Yo Yo Honey Singh" },
-    { title: "Lungi Dance", artist: "Yo Yo Honey Singh", file: "Lungi Dance - Yo Yo Honey Singh" },
     { title: "Maan Meri Jaan", artist: "King", file: "Maan Meri Jaan - King" },
-    { title: "Mujhko Yaad Sataye", artist: "Himesh Reshammiya", file: "Mujhko Yaad Sataye" },
-    { title: "Munni Badnaam", artist: "Mamta Sharma, Aishwarya", file: "Munni Badnaam" },
-    { title: "Naal Nachna", artist: "Shashwat Sachdev, Atsana", file: "Naal Nachna" },
-    { title: "Nusta Paisa", artist: "MC STAN", file: "Nusta Paisa - MC STAN" },
-    { title: "One Two Three Four", artist: "Get on the Dance Floor", file: "One Two Three Four" },
-    { title: "Party All Night", artist: "Yo Yo Honey Singh", file: "Party All Night - Yo Yo Honey Singh" },
-    { title: "Shaky", artist: "Sanju Rathod", file: "Shaky - Sanju Rathod" },
-    { title: "Shararat", artist: "Shashwat Sachdev, Madhubanti", file: "Shararat" },
-    { title: "Tera Rastaa", artist: "Anusha Mani, Amitabh Bhattacharya", file: "Tera Rastaa" },
-    { title: "Tere Liye", artist: "Atif Aslam", file: "Tere Liye - Atif Aslam" },
-    { title: "Tinku Jiya", artist: "Mamta Sharma, Javed Ali", file: "Tinku Jiya" },
-    { title: "Vazan", artist: "SAMBATA, Karan Kanchan", file: "Vazan" },
-    { title: "Yeh Dil Deewana", artist: "Sonu Nigam, Hema Sardesai", file: "Yeh Dil Deewana" }
+    { title: "Tere Liye", artist: "Atif Aslam", file: "Tere Liye - Atif Aslam" }
   ],
   "90s": [
     { title: "Aise Na Mujhe", artist: "Kishore Kumar", file: "Aise_Na_Mujhe" },
     { title: "Gulabi Ankhen", artist: "Mohd. Rafi", file: "gulabi aahken" },
     { title: "Kehdoon Tumhen", artist: "Kishore Kumar & Asha Bhosle", file: "Kehdoon_Tumhen" },
-    { title: "Kiska Rasta Dekhe", artist: "Kishore Kumar", file: "Kiska_Rasta_Dekhe_" },
-    { title: "Mehbooba Mehbooba", artist: "R.D. Burman", file: "Mehbooba Mehbooba" },
-    { title: "Pal Bhar Ke Liye", artist: "Kishore Kumar & Asha Bhosle", file: "Pal_Bhar_Ke_Liye_" },
-    { title: "Pal Pal Dil Ke Paas", artist: "Kishore Kumar", file: "Pal_Pal_Dil_Ke_Paas" },
-    { title: "Yunhi Tum Mujhse", artist: "Mohd. Rafi & Lata Mangeshkar", file: "Yunhi_Tum_Mujhse" }
+    { title: "Pal Pal Dil Ke Paas", artist: "Kishore Kumar", file: "Pal_Pal_Dil_Ke_Paas" }
   ],
   "3D Audio": [
-    { title: "Dil Ka Jo Haal Hai (3D)", artist: "Abhijeet, Shreya Ghoshal", file: "Dil Ka Jo Haal Hai - Abhijeet, Shreya Ghoshal" },
-    { title: "Blue Eyes (3D Remaster)", artist: "Yo Yo Honey Singh", file: "Blue Eyes - Yo Yo Honey Singh" },
-    { title: "Badtameez Dil (3D Experience)", artist: "Benny Dayal", file: "Badtameez Dil - Benny Dayal, Shefali Alvares" }
+    { title: "Blue Eyes (3D Remaster)", artist: "Yo Yo Honey Singh", file: "Blue Eyes - Yo Yo Honey Singh" }
   ]
 };
+
+// Sample Synced Lyrics DB
+const sampleLyrics = [
+  { time: 0, text: "🎵 Audio Playing..." },
+  { time: 10, text: "Feel the beats & rhythm" },
+  { time: 20, text: "Singing along with the song" },
+  { time: 30, text: "Music connects everyone" },
+  { time: 45, text: "Enjoying the favorite track" },
+  { time: 60, text: "Harmonies in the air" }
+];
 
 let currentCategory = "Trending";
 let currentSongIndex = 0;
@@ -75,7 +48,9 @@ let globalVolume = 1;
 let audioCtx;
 let analyser;
 let sourceNode;
-let animationFrameId;
+let eqFilters = [];
+
+let canvas, ctx;
 
 function buildUrl(category, fileName, ext) {
   const base = (category === "90s") ? BASE_FOLDER_90S : BASE_FOLDER_2026;
@@ -156,11 +131,15 @@ function loadAndPlaySong(index) {
   activeAudio.pause();
   activeAudio = new Audio();
   
+  const speedVal = parseFloat(document.getElementById('speed-slider').value);
+  activeAudio.playbackRate = speedVal;
+
   const primaryUrl = buildUrl(folderCat, song.file, '.m4a');
   activeAudio.src = primaryUrl;
   activeAudio.volume = globalVolume;
   
   setupAudioEvents(activeAudio);
+  renderLyrics(sampleLyrics);
   
   const playPromise = activeAudio.play();
   if (playPromise !== undefined) {
@@ -182,47 +161,37 @@ function loadAndPlaySong(index) {
   renderPlaylist(displayedList);
 }
 
-function triggerCrossfade() {
-  if (isCrossfading) return;
-  isCrossfading = true;
+function renderLyrics(lyrics) {
+  const scrollContainer = document.getElementById('lyrics-scroll');
+  scrollContainer.innerHTML = '';
+  lyrics.forEach((line) => {
+    const p = document.createElement('p');
+    p.className = 'lyric-line';
+    p.dataset.time = line.time;
+    p.textContent = line.text;
+    p.onclick = () => {
+      if (activeAudio.duration) activeAudio.currentTime = line.time;
+    };
+    scrollContainer.appendChild(p);
+  });
+}
 
-  const list = displayedList.length > 0 ? displayedList : getActiveList();
-  let nextIndex = (currentSongIndex + 1) % list.length;
-  const nextSong = list[nextIndex];
-  if (!nextSong) return;
+function syncLyrics(currentTime) {
+  const lines = document.querySelectorAll('.lyric-line');
+  let activeIndex = 0;
+  lines.forEach((line, index) => {
+    const lineTime = parseFloat(line.dataset.time);
+    if (currentTime >= lineTime) {
+      activeIndex = index;
+    }
+    line.classList.remove('active');
+  });
 
-  const folderCat = getSongFolderCategory(nextSong);
-  nextAudio = new Audio();
-  nextAudio.src = buildUrl(folderCat, nextSong.file, '.m4a');
-  nextAudio.volume = 0;
-
-  nextAudio.play().then(() => {
-    let fadeSteps = 20;
-    let stepTime = (crossfadeDuration * 1000) / fadeSteps;
-    let stepCount = 0;
-
-    let fadeInterval = setInterval(() => {
-      stepCount++;
-      let progress = stepCount / fadeSteps;
-
-      activeAudio.volume = Math.max(0, globalVolume * (1 - progress));
-      nextAudio.volume = Math.min(globalVolume, globalVolume * progress);
-
-      if (stepCount >= fadeSteps) {
-        clearInterval(fadeInterval);
-        activeAudio.pause();
-        activeAudio = nextAudio;
-        currentSongIndex = nextIndex;
-        isCrossfading = false;
-
-        document.getElementById('song-title').textContent = nextSong.title;
-        document.getElementById('artist-name').textContent = nextSong.artist;
-        setupAudioEvents(activeAudio);
-        initAudioVisualizer(activeAudio);
-        renderPlaylist(displayedList);
-      }
-    }, stepTime);
-  }).catch(() => { isCrossfading = false; });
+  if (lines[activeIndex]) {
+    lines[activeIndex].classList.add('active');
+    const scrollContainer = document.getElementById('lyrics-scroll');
+    scrollContainer.style.transform = `translateY(-${activeIndex * 26}px)`;
+  }
 }
 
 function setupAudioEvents(audioObj) {
@@ -239,19 +208,14 @@ function setupAudioEvents(audioObj) {
       currentTimeElem.textContent = formatTime(audioObj.currentTime);
       durationElem.textContent = formatTime(audioObj.duration);
 
-      const timeLeft = audioObj.duration - audioObj.currentTime;
-      if (timeLeft <= crossfadeDuration && crossfadeDuration > 0 && !isCrossfading) {
-        triggerCrossfade();
-      }
+      syncLyrics(audioObj.currentTime);
     }
   });
 
   audioObj.addEventListener('ended', () => {
-    if (!isCrossfading) {
-      const list = displayedList.length > 0 ? displayedList : getActiveList();
-      currentSongIndex = (currentSongIndex + 1) % list.length;
-      loadAndPlaySong(currentSongIndex);
-    }
+    const list = displayedList.length > 0 ? displayedList : getActiveList();
+    currentSongIndex = (currentSongIndex + 1) % list.length;
+    loadAndPlaySong(currentSongIndex);
   });
 }
 
@@ -262,85 +226,106 @@ function formatTime(seconds) {
   return `${mins}:${secs < 10 ? '0' : ''}${secs}`;
 }
 
+/* Web Audio API Equalizer */
 function initAudioVisualizer(audioElement) {
   try {
     if (!audioCtx) {
       audioCtx = new (window.AudioContext || window.webkitAudioContext)();
       analyser = audioCtx.createAnalyser();
       analyser.fftSize = 64;
+
+      const freqs = [60, 250, 1000, 4000, 16000];
+      eqFilters = freqs.map((freq) => {
+        const filter = audioCtx.createBiquadFilter();
+        filter.type = freq <= 250 ? 'lowshelf' : freq >= 4000 ? 'highshelf' : 'peaking';
+        filter.frequency.value = freq;
+        filter.gain.value = 0;
+        return filter;
+      });
     }
 
-    if (audioCtx.state === 'suspended') {
-      audioCtx.resume();
-    }
+    if (audioCtx.state === 'suspended') audioCtx.resume();
 
     if (sourceNode) sourceNode.disconnect();
     sourceNode = audioCtx.createMediaElementSource(audioElement);
-    sourceNode.connect(analyser);
+
+    // Connect filters in chain
+    let current = sourceNode;
+    eqFilters.forEach((filter) => {
+      current.connect(filter);
+      current = filter;
+    });
+
+    current.connect(analyser);
     analyser.connect(audioCtx.destination);
 
-    startGlowSync();
+    startDynamicCanvas();
   } catch (e) {}
 }
 
-function startGlowSync() {
-  if (!analyser) return;
+/* Dynamic Ambient Gradient Canvas */
+function startDynamicCanvas() {
+  canvas = document.getElementById('ambient-canvas');
+  if (!canvas) return;
+  ctx = canvas.getContext('2d');
+  
+  canvas.width = window.innerWidth;
+  canvas.height = window.innerHeight;
 
-  const bufferLength = analyser.frequencyBinCount;
-  const dataArray = new Uint8Array(bufferLength);
-  const targetElem = document.getElementById('player-wrapper');
+  function drawCanvas() {
+    requestAnimationFrame(drawCanvas);
+    if (!analyser) return;
 
-  function updateGlow() {
-    animationFrameId = requestAnimationFrame(updateGlow);
+    const bufferLength = analyser.frequencyBinCount;
+    const dataArray = new Uint8Array(bufferLength);
     analyser.getByteFrequencyData(dataArray);
 
     let sum = 0;
-    for (let i = 0; i < bufferLength; i++) {
-      sum += dataArray[i];
-    }
-    let average = sum / bufferLength;
+    for (let i = 0; i < bufferLength; i++) sum += dataArray[i];
+    let avg = sum / bufferLength;
 
-    let glowRadius = Math.min(30, 8 + average * 0.18);
-    let hue = (Date.now() / 25) % 360;
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-    if (targetElem) {
-      targetElem.style.boxShadow = `0 0 ${glowRadius}px hsl(${hue}, 100%, 50%)`;
-    }
+    let gradient = ctx.createRadialGradient(
+      canvas.width / 2, canvas.height / 2, 50,
+      canvas.width / 2, canvas.height / 2, canvas.width / 1.5
+    );
+
+    let hue1 = (Date.now() / 30) % 360;
+    let hue2 = (hue1 + 60) % 360;
+
+    gradient.addColorStop(0, `hsla(${hue1}, 100%, 50%, ${0.2 + avg * 0.003})`);
+    gradient.addColorStop(1, `hsla(${hue2}, 100%, 20%, 0)`);
+
+    ctx.fillStyle = gradient;
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
   }
 
-  if (animationFrameId) cancelAnimationFrame(animationFrameId);
-  updateGlow();
+  drawCanvas();
 }
 
-/* Keyboard Shortcuts Controls */
-function setupKeyboardControls() {
-  document.addEventListener('keydown', (e) => {
-    // Disable shortcuts if user is typing in search bar
-    if (document.activeElement.tagName === 'INPUT') return;
+/* Mini Floating Player (Picture in Picture) */
+async function togglePiP() {
+  const video = document.getElementById('pip-video');
+  try {
+    if (document.pictureInPictureElement) {
+      await document.exitPictureInPicture();
+    } else {
+      const streamCanvas = document.createElement('canvas');
+      streamCanvas.width = 300;
+      streamCanvas.height = 150;
+      const cCtx = streamCanvas.getContext('2d');
+      cCtx.fillStyle = '#121216';
+      cCtx.fillRect(0,0,300,150);
+      cCtx.fillStyle = '#00f2fe';
+      cCtx.font = '16px sans-serif';
+      cCtx.fillText('🎵 Playing Music', 20, 80);
 
-    if (e.code === 'Space') {
-      e.preventDefault();
-      document.getElementById('play-btn').click();
-    } else if (e.code === 'ArrowRight') {
-      e.preventDefault();
-      if (activeAudio.currentTime) activeAudio.currentTime = Math.min(activeAudio.duration, activeAudio.currentTime + 5);
-    } else if (e.code === 'ArrowLeft') {
-      e.preventDefault();
-      if (activeAudio.currentTime) activeAudio.currentTime = Math.max(0, activeAudio.currentTime - 5);
-    } else if (e.code === 'ArrowUp') {
-      e.preventDefault();
-      const volSlider = document.getElementById('volume-slider');
-      globalVolume = Math.min(1, globalVolume + 0.05);
-      activeAudio.volume = globalVolume;
-      if (volSlider) volSlider.value = globalVolume;
-    } else if (e.code === 'ArrowDown') {
-      e.preventDefault();
-      const volSlider = document.getElementById('volume-slider');
-      globalVolume = Math.max(0, globalVolume - 0.05);
-      activeAudio.volume = globalVolume;
-      if (volSlider) volSlider.value = globalVolume;
+      video.srcObject = streamCanvas.captureStream();
+      await video.play();
+      await video.requestPictureInPicture();
     }
-  });
+  } catch (err) {}
 }
 
 document.addEventListener('DOMContentLoaded', () => {
@@ -361,10 +346,6 @@ document.addEventListener('DOMContentLoaded', () => {
         currentSongIndex = 0;
         document.querySelectorAll('.cat-btn').forEach(b => b.classList.remove('active'));
         e.target.classList.add('active');
-        
-        const searchInput = document.getElementById('search-input');
-        if (searchInput) searchInput.value = '';
-        
         displayedList = getActiveList();
         loadAndPlaySong(currentSongIndex);
       };
@@ -385,14 +366,12 @@ document.addEventListener('DOMContentLoaded', () => {
   document.getElementById('next-btn').onclick = () => {
     const list = displayedList.length > 0 ? displayedList : getActiveList();
     currentSongIndex = (currentSongIndex + 1) % list.length;
-    isCrossfading = false;
     loadAndPlaySong(currentSongIndex);
   };
 
   document.getElementById('prev-btn').onclick = () => {
     const list = displayedList.length > 0 ? displayedList : getActiveList();
     currentSongIndex = (currentSongIndex - 1 + list.length) % list.length;
-    isCrossfading = false;
     loadAndPlaySong(currentSongIndex);
   };
 
@@ -404,14 +383,43 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   };
 
-  const crossfadeSlider = document.getElementById('crossfade-slider');
-  const crossfadeVal = document.getElementById('crossfade-val');
-  if (crossfadeSlider) {
-    crossfadeSlider.oninput = (e) => {
-      crossfadeDuration = parseInt(e.target.value);
-      if (crossfadeVal) crossfadeVal.textContent = `${crossfadeDuration}s`;
+  // Speed Slider
+  const speedSlider = document.getElementById('speed-slider');
+  speedSlider.oninput = (e) => {
+    const val = parseFloat(e.target.value);
+    document.getElementById('speed-val').textContent = `${val.toFixed(1)}x`;
+    activeAudio.playbackRate = val;
+  };
+
+  // Equalizer UI Controls
+  document.getElementById('eq-toggle-btn').onclick = () => {
+    document.getElementById('eq-panel').classList.toggle('hidden');
+  };
+
+  document.querySelectorAll('.eq-band-slider').forEach(slider => {
+    slider.oninput = (e) => {
+      const idx = parseInt(e.target.dataset.band);
+      if (eqFilters[idx]) eqFilters[idx].gain.value = parseFloat(e.target.value);
     };
-  }
+  });
+
+  const presets = {
+    flat: [0, 0, 0, 0, 0],
+    bass: [8, 5, 0, 0, 0],
+    pop: [-1, 2, 5, 3, -1],
+    rock: [5, 3, -1, 3, 5],
+    vocal: [-3, 0, 6, 4, 1]
+  };
+
+  document.getElementById('eq-presets').onchange = (e) => {
+    const vals = presets[e.target.value] || presets.flat;
+    document.querySelectorAll('.eq-band-slider').forEach((slider, idx) => {
+      slider.value = vals[idx];
+      if (eqFilters[idx]) eqFilters[idx].gain.value = vals[idx];
+    });
+  };
+
+  document.getElementById('pip-btn').onclick = togglePiP;
 
   const volSlider = document.getElementById('volume-slider');
   if (volSlider) {
@@ -421,25 +429,5 @@ document.addEventListener('DOMContentLoaded', () => {
     };
   }
 
-  const searchInput = document.getElementById('search-input');
-  if (searchInput) {
-    searchInput.oninput = (e) => {
-      const query = e.target.value.toLowerCase().trim();
-      const allSongs = [...playlist["Trending"], ...playlist["90s"], ...playlist["3D Audio"]];
-
-      if (query === "") {
-        displayedList = getActiveList();
-      } else {
-        displayedList = allSongs.filter(s => 
-          s.title.toLowerCase().includes(query) || 
-          s.artist.toLowerCase().includes(query)
-        );
-      }
-      currentSongIndex = 0;
-      renderPlaylist(displayedList);
-    };
-  }
-
-  setupKeyboardControls();
   renderPlaylist();
 });
