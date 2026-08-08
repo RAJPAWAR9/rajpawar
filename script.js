@@ -125,6 +125,22 @@ function getSongFolderCategory(song) {
   return "Trending";
 }
 
+function updatePlaybackUI(isPlaying) {
+  const playBtn = document.getElementById('play-btn');
+  const albumArt = document.getElementById('album-art-box');
+  const waveBars = document.getElementById('wave-bars');
+
+  if (isPlaying) {
+    if (playBtn) playBtn.textContent = '❚❚';
+    if (albumArt) albumArt.classList.add('playing');
+    if (waveBars) waveBars.classList.add('playing');
+  } else {
+    if (playBtn) playBtn.textContent = '▶';
+    if (albumArt) albumArt.classList.remove('playing');
+    if (waveBars) waveBars.classList.remove('playing');
+  }
+}
+
 function loadAndPlaySong(index) {
   const list = displayedList.length > 0 ? displayedList : getActiveList();
   if (!list[index]) return;
@@ -140,7 +156,6 @@ function loadAndPlaySong(index) {
   activeAudio.pause();
   activeAudio = new Audio();
   
-  // Audio loader with fallback for formats (.m4a / .mp3)
   const primaryUrl = buildUrl(folderCat, song.file, '.m4a');
   activeAudio.src = primaryUrl;
   activeAudio.volume = globalVolume;
@@ -150,17 +165,16 @@ function loadAndPlaySong(index) {
   const playPromise = activeAudio.play();
   if (playPromise !== undefined) {
     playPromise.then(() => {
-      document.getElementById('play-btn').textContent = '❚❚';
+      updatePlaybackUI(true);
       initAudioVisualizer(activeAudio);
     }).catch(() => {
-      // Retry with .mp3 extension if .m4a fails
       const fallbackUrl = buildUrl(folderCat, song.file, '.mp3');
       activeAudio.src = fallbackUrl;
       activeAudio.play().then(() => {
-        document.getElementById('play-btn').textContent = '❚❚';
+        updatePlaybackUI(true);
         initAudioVisualizer(activeAudio);
       }).catch(() => {
-        document.getElementById('play-btn').textContent = '▶';
+        updatePlaybackUI(false);
       });
     });
   }
@@ -298,6 +312,37 @@ function startGlowSync() {
   updateGlow();
 }
 
+/* Keyboard Shortcuts Controls */
+function setupKeyboardControls() {
+  document.addEventListener('keydown', (e) => {
+    // Disable shortcuts if user is typing in search bar
+    if (document.activeElement.tagName === 'INPUT') return;
+
+    if (e.code === 'Space') {
+      e.preventDefault();
+      document.getElementById('play-btn').click();
+    } else if (e.code === 'ArrowRight') {
+      e.preventDefault();
+      if (activeAudio.currentTime) activeAudio.currentTime = Math.min(activeAudio.duration, activeAudio.currentTime + 5);
+    } else if (e.code === 'ArrowLeft') {
+      e.preventDefault();
+      if (activeAudio.currentTime) activeAudio.currentTime = Math.max(0, activeAudio.currentTime - 5);
+    } else if (e.code === 'ArrowUp') {
+      e.preventDefault();
+      const volSlider = document.getElementById('volume-slider');
+      globalVolume = Math.min(1, globalVolume + 0.05);
+      activeAudio.volume = globalVolume;
+      if (volSlider) volSlider.value = globalVolume;
+    } else if (e.code === 'ArrowDown') {
+      e.preventDefault();
+      const volSlider = document.getElementById('volume-slider');
+      globalVolume = Math.max(0, globalVolume - 0.05);
+      activeAudio.volume = globalVolume;
+      if (volSlider) volSlider.value = globalVolume;
+    }
+  });
+}
+
 document.addEventListener('DOMContentLoaded', () => {
   displayedList = getActiveList();
 
@@ -330,10 +375,10 @@ document.addEventListener('DOMContentLoaded', () => {
     if (activeAudio.paused) {
       activeAudio.play();
       if (audioCtx && audioCtx.state === 'suspended') audioCtx.resume();
-      document.getElementById('play-btn').textContent = '❚❚';
+      updatePlaybackUI(true);
     } else {
       activeAudio.pause();
-      document.getElementById('play-btn').textContent = '▶';
+      updatePlaybackUI(false);
     }
   };
 
@@ -395,5 +440,6 @@ document.addEventListener('DOMContentLoaded', () => {
     };
   }
 
+  setupKeyboardControls();
   renderPlaylist();
 });
