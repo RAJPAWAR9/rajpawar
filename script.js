@@ -74,7 +74,16 @@ let displayedList = [];
 
 let activeAudio = new Audio();
 let nextAudio = new Audio();
+activeAudio.crossOrigin = "anonymous";
+nextAudio.crossOrigin = "anonymous";
+
 let globalVolume = 1;
+
+// Web Audio API for Beat Sync Glow
+let audioCtx;
+let analyser;
+let sourceNode;
+let animationFrameId;
 
 function buildUrl(category, fileName, extension) {
   const base = (category === "90s") ? BASE_FOLDER_90S : BASE_FOLDER_2026;
@@ -138,6 +147,7 @@ function loadAndPlaySong(index) {
   
   activeAudio.pause();
   activeAudio = new Audio();
+  activeAudio.crossOrigin = "anonymous";
   activeAudio.src = buildUrl(folderCat, song.file, '.m4a');
   activeAudio.volume = globalVolume;
   
@@ -145,6 +155,7 @@ function loadAndPlaySong(index) {
   
   activeAudio.play().then(() => {
     document.getElementById('play-btn').textContent = '❚❚';
+    initAudioVisualizer(activeAudio);
   }).catch(e => console.log(e));
 
   renderPlaylist(displayedList);
@@ -161,6 +172,7 @@ function triggerCrossfade() {
 
   const folderCat = getSongFolderCategory(nextSong);
   nextAudio = new Audio();
+  nextAudio.crossOrigin = "anonymous";
   nextAudio.src = buildUrl(folderCat, nextSong.file, '.m4a');
   nextAudio.volume = 0;
 
@@ -186,6 +198,7 @@ function triggerCrossfade() {
         document.getElementById('song-title').textContent = nextSong.title;
         document.getElementById('artist-name').textContent = nextSong.artist;
         setupAudioEvents(activeAudio);
+        initAudioVisualizer(activeAudio);
         renderPlaylist(displayedList);
       }
     }, stepTime);
@@ -229,6 +242,57 @@ function formatTime(seconds) {
   return `${mins}:${secs < 10 ? '0' : ''}${secs}`;
 }
 
+// Beat Sync Glowing Visualizer Engine
+function initAudioVisualizer(audioElement) {
+  try {
+    if (!audioCtx) {
+      audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+      analyser = audioCtx.createAnalyser();
+      analyser.fftSize = 64;
+    }
+
+    if (audioCtx.state === 'suspended') {
+      audioCtx.resume();
+    }
+
+    if (sourceNode) sourceNode.disconnect();
+    sourceNode = audioCtx.createMediaElementSource(audioElement);
+    sourceNode.connect(analyser);
+    analyser.connect(audioCtx.destination);
+
+    startGlowSync();
+  } catch (e) {
+    // MediaElementSource fallback
+  }
+}
+
+function startGlowSync() {
+  if (!analyser) return;
+
+  const bufferLength = analyser.frequencyBinCount;
+  const dataArray = new Uint8Array(bufferLength);
+  const targetElem = document.querySelector('.main-card') || document.body;
+
+  function updateGlow() {
+    animationFrameId = requestAnimationFrame(updateGlow);
+    analyser.getByteFrequencyData(dataArray);
+
+    let sum = 0;
+    for (let i = 0; i < bufferLength; i++) {
+      sum += dataArray[i];
+    }
+    let average = sum / bufferLength;
+
+    let glowRadius = Math.min(70, 15 + average * 0.35);
+    let hue = (Date.now() / 25) % 360;
+
+    targetElem.style.boxShadow = `0 0 ${glowRadius}px hsl(${hue}, 100%, 50%), inset 0 0 ${glowRadius / 2}px hsl(${hue}, 100%, 50%)`;
+  }
+
+  if (animationFrameId) cancelAnimationFrame(animationFrameId);
+  updateGlow();
+}
+
 document.addEventListener('DOMContentLoaded', () => {
   displayedList = getActiveList();
 
@@ -260,6 +324,7 @@ document.addEventListener('DOMContentLoaded', () => {
   document.getElementById('play-btn').onclick = () => {
     if (activeAudio.paused) {
       activeAudio.play();
+      if (audioCtx && audioCtx.state === 'suspended') audioCtx.resume();
       document.getElementById('play-btn').textContent = '❚❚';
     } else {
       activeAudio.pause();
@@ -291,31 +356,39 @@ document.addEventListener('DOMContentLoaded', () => {
 
   const crossfadeSlider = document.getElementById('crossfade-slider');
   const crossfadeVal = document.getElementById('crossfade-val');
-  crossfadeSlider.oninput = (e) => {
-    crossfadeDuration = parseInt(e.target.value);
-    crossfadeVal.textContent = `${crossfadeDuration}s`;
-  };
+  if (crossfadeSlider) {
+    crossfadeSlider.oninput = (e) => {
+      crossfadeDuration = parseInt(e.target.value);
+      if (crossfadeVal) crossfadeVal.textContent = `${crossfadeDuration}s`;
+    };
+  }
 
-  document.getElementById('volume-slider').oninput = (e) => {
-    globalVolume = parseFloat(e.target.value);
-    activeAudio.volume = globalVolume;
-  };
+  const volSlider = document.getElementById('volume-slider');
+  if (volSlider) {
+    volSlider.oninput = (e) => {
+      globalVolume = parseFloat(e.target.value);
+      activeAudio.volume = globalVolume;
+    };
+  }
 
-  document.getElementById('search-input').oninput = (e) => {
-    const query = e.target.value.toLowerCase().trim();
-    const allSongs = [...playlist["Trending"], ...playlist["90s"], ...playlist["3D Audio"]];
+  const searchInput = document.getElementById('search-input');
+  if (searchInput) {
+    searchInput.oninput = (e) => {
+      const query = e.target.value.toLowerCase().trim();
+      const allSongs = [...playlist["Trending"], ...playlist["90s"], ...playlist["3D Audio"]];
 
-    if (query === "") {
-      displayedList = getActiveList();
-    } else {
-      displayedList = allSongs.filter(s => 
-        s.title.toLowerCase().includes(query) || 
-        s.artist.toLowerCase().includes(query)
-      );
-    }
-    currentSongIndex = 0;
-    renderPlaylist(displayedList);
-  };
+      if (query === "") {
+        displayedList = getActiveList();
+      } else {
+        displayedList = allSongs.filter(s => 
+          s.title.toLowerCase().includes(query) || 
+          s.artist.toLowerCase().includes(query)
+        );
+      }
+      currentSongIndex = 0;
+      renderPlaylist(displayedList);
+    };
+  }
 
   loadAndPlaySong(currentSongIndex);
 });
