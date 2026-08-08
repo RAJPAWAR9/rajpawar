@@ -1,4 +1,4 @@
-// Base Folders Configuration
+// Exact Base Paths matching your GitHub Repository
 const BASE_FOLDER_2026 = "song/2026 music";
 const BASE_FOLDER_90S = "song/2026 music/90s";
 
@@ -21,11 +21,12 @@ const themes = {
   }
 };
 
-// Complete Songs Playlist
+// Playlist array mapped exactly with your Repo File Names
 const playlist = {
   "2026": [
     { title: "Aa Re Pritam Pyaare", artist: "Mamta Sharma, Sajid-Wajid", file: "Aa Re Pritam Pyaare" },
     { title: "Aapka Kya Hoga", artist: "Mika Singh, Sunidhi Chauhan", file: "Aapka Kya Hoga" },
+    { title: "Apna Time Aayega", artist: "Ranveer Singh, DIVINE", file: "Apna Time Aayega - Ranveer Singh, DIVINE" },
     { title: "Badtameez Dil", artist: "Benny Dayal, Shefali Alvares", file: "Badtameez Dil - Benny Dayal, Shefali Alvares" },
     { title: "Balam Pichkari", artist: "Vishal Dadlani, Shalmali Kholgade", file: "Balam Pichkari" },
     { title: "Balma", artist: "Shriram Iyer, Shreya Ghoshal", file: "Balma - Shriram Iyer, Shreya Ghoshal" },
@@ -90,7 +91,8 @@ let currentCategory = "2026";
 let currentSongIndex = 0;
 let testedExtensionIndex = 0;
 
-const possibleFormats = ['.m4a', '.mp3', '.wav', '.aac', '.ogg', '.flac', '.mp4'];
+// Format priority based on your GitHub files
+const possibleFormats = ['.m4a', '.mp3', '.wav'];
 
 const audio = document.getElementById('audio') || new Audio();
 const playBtn = document.getElementById('play-btn');
@@ -109,7 +111,7 @@ function buildUrl(category, fileName, extension) {
   return fullPath.split('/').map(part => encodeURIComponent(part)).join('/');
 }
 
-// Extension Fallback
+// Extension Fallback Logic
 audio.addEventListener('error', () => {
   testedExtensionIndex++;
   if (playlist[currentCategory] && testedExtensionIndex < possibleFormats.length) {
