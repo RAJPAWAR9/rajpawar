@@ -1,6 +1,6 @@
 /**
  * BOOSTER V0.9 - Next-Gen Audio OS Engine
- * Integrated Password Protection + Queue & History Engine
+ * Integrated Password Protection + Queue, Category Filters & Timeline Seeking
  * Dezained by raj pawar
  */
 
@@ -73,7 +73,7 @@ const playlist = {
   ]
 };
 
-// State Arrays
+// State Variables
 let currentCategory = "Trending";
 let currentSongIndex = 0;
 let displayedList = [];
@@ -86,11 +86,9 @@ let activeAudio = playerA;
 let nextAudio = playerB;
 
 let globalVolume = 0.8;
-let crossfadeTime = 6;
-let crossfadeStarted = false;
 let audioCtx, analyser, srcNodeA, srcNodeB;
 
-// Password Unlock Engine
+// Password Lock Engine
 function initPasswordLock() {
   const lockBtn = document.getElementById('unlock-btn');
   const passInput = document.getElementById('access-pass');
@@ -199,7 +197,6 @@ function playAudioWithFallback(audioElement, song) {
   }
 }
 
-// Queue & History Updater UI
 function updateQueueAndHistoryUI() {
   const upnextList = document.getElementById('upnext-list');
   const historyList = document.getElementById('history-list');
@@ -207,7 +204,6 @@ function updateQueueAndHistoryUI() {
 
   if (upnextList) {
     upnextList.innerHTML = '';
-    // Show custom queue or next items from active playlist
     let queueToShow = customQueue.length > 0 ? customQueue : list.slice(currentSongIndex + 1, currentSongIndex + 6);
     
     queueToShow.forEach((song, idx) => {
@@ -228,7 +224,7 @@ function updateQueueAndHistoryUI() {
     historyList.innerHTML = '';
     songHistory.forEach((song) => {
       const item = document.createElement('div');
-      item.style.cssText = "padding:10px 14px; background:rgba(255,255,255,0.03); border-radius:12px; border:1px solid var(--glass-border);";
+      item.style.cssText = "padding:10px 14px; background:rgba(255,255,255,0.03); border-radius:12px; border:1px solid var(--glass-border); margin-bottom:6px;";
       item.innerHTML = `
         <div style="font-size:13px; font-weight:600; color:#fff;">${song.title}</div>
         <div style="font-size:11px; color:var(--text-secondary);">${song.artist}</div>
@@ -247,20 +243,17 @@ function loadAndPlaySong(index, isManualTrigger = true) {
 
   const song = list[index];
 
-  // Add to History System
   if (!songHistory.some(s => s.file === song.file)) {
     songHistory.unshift(song);
     if (songHistory.length > 10) songHistory.pop();
   }
 
-  // UI Updates
   document.getElementById('mini-title').textContent = song.title;
   document.getElementById('mini-artist').textContent = song.artist + " • Dezained by raj pawar";
   if (document.getElementById('np-title')) document.getElementById('np-title').textContent = song.title;
   if (document.getElementById('np-artist')) document.getElementById('np-artist').textContent = song.artist + " • Dezained by raj pawar";
 
   if (isManualTrigger) {
-    crossfadeStarted = false;
     playerA.pause(); playerB.pause();
     playerA.currentTime = 0; playerB.currentTime = 0;
 
@@ -317,7 +310,7 @@ function renderTrendingGrid() {
   displayedList.forEach((song, index) => {
     const card = document.createElement('div');
     card.className = `glass-panel ${index === currentSongIndex ? 'active' : ''}`;
-    card.style.cssText = "padding:14px; border-radius:16px; cursor:pointer; margin-bottom:8px; display:flex; justify-style:space-between; align-items:center;";
+    card.style.cssText = "padding:14px; border-radius:16px; cursor:pointer; margin-bottom:8px; display:flex; justify-content:space-between; align-items:center;";
 
     card.innerHTML = `
       <div>
@@ -348,7 +341,64 @@ document.addEventListener('DOMContentLoaded', () => {
   displayedList = getActiveList();
   renderTrendingGrid();
 
-  // Tab Toggle Logic (Up Next vs History)
+  // Category Filters Event Listeners (FIXED)
+  const catBtns = [
+    { id: 'btn-2026', cat: 'Trending' },
+    { id: 'btn-90s', cat: '90s' },
+    { id: 'btn-3d', cat: '3D Audio' },
+    { id: 'btn-all', cat: 'All' }
+  ];
+
+  catBtns.forEach(item => {
+    const btn = document.getElementById(item.id);
+    if (btn) {
+      btn.onclick = () => {
+        document.querySelectorAll('.cat-btn').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        currentCategory = item.cat;
+        displayedList = getActiveList();
+        currentSongIndex = 0;
+        renderTrendingGrid();
+      };
+    }
+  });
+
+  // Timeline Bar Seek Handler (FIXED)
+  const progressContainer = document.getElementById('progress-bar-container');
+  if (progressContainer) {
+    progressContainer.onclick = (e) => {
+      if (!activeAudio.duration) return;
+      const rect = progressContainer.getBoundingClientRect();
+      const clickX = e.clientX - rect.left;
+      const width = rect.width;
+      const newTime = (clickX / width) * activeAudio.duration;
+      activeAudio.currentTime = newTime;
+    };
+  }
+
+  // Live Search Filter Handler
+  const searchInput = document.getElementById('global-search');
+  if (searchInput) {
+    searchInput.oninput = (e) => {
+      const query = e.target.value.toLowerCase().trim();
+      const fullList = getActiveList();
+      displayedList = fullList.filter(s => 
+        s.title.toLowerCase().includes(query) || s.artist.toLowerCase().includes(query)
+      );
+      renderTrendingGrid();
+    };
+  }
+
+  // Volume Slider Handler
+  const volSlider = document.getElementById('master-volume');
+  if (volSlider) {
+    volSlider.oninput = (e) => {
+      globalVolume = parseFloat(e.target.value);
+      activeAudio.volume = globalVolume;
+    };
+  }
+
+  // Queue vs History Tab Toggle
   const tabUpNext = document.getElementById('tab-upnext');
   const tabHistory = document.getElementById('tab-history');
   const upnextCont = document.getElementById('upnext-container');
@@ -384,7 +434,7 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   });
 
-  // Play Controls
+  // Master Play / Next / Prev Controls
   document.getElementById('master-play-btn').onclick = () => {
     initBeatSync();
     if (audioCtx && audioCtx.state === 'suspended') audioCtx.resume();
