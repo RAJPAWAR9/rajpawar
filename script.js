@@ -79,7 +79,7 @@ let crossfadeStarted = false;
 let audioCtx, analyser, srcNodeA, srcNodeB;
 let canvas, ctx;
 
-// Upgraded 3D / 8D Audio Variables
+// Upgraded High Quality 8D Audio Variables
 let pannerNode;
 let filterNode;
 let is8DActive = false;
@@ -92,20 +92,20 @@ function initBeatSync() {
     analyser = audioCtx.createAnalyser();
     analyser.fftSize = 64;
 
-    // 1. HRTF 3D Panner (Human Ear Acoustic Simulation)
+    // HRTF Spatial Panner
     pannerNode = audioCtx.createPanner();
     pannerNode.panningModel = 'HRTF';
     pannerNode.distanceModel = 'inverse';
 
-    // 2. Lowpass Filter (Dynamic Back/Front Surround Effect)
+    // Lowpass Filter for audio Routing
     filterNode = audioCtx.createBiquadFilter();
     filterNode.type = 'lowpass';
-    filterNode.frequency.value = 20000;
+    filterNode.frequency.value = 20000; // Full High-Resolution frequencies allowed
 
     srcNodeA = audioCtx.createMediaElementSource(playerA);
     srcNodeB = audioCtx.createMediaElementSource(playerB);
 
-    // Audio Connections Routing
+    // Audio Routing pipeline
     srcNodeA.connect(filterNode);
     srcNodeB.connect(filterNode);
     filterNode.connect(pannerNode);
@@ -116,7 +116,7 @@ function initBeatSync() {
     startBeatSyncAnimation();
     start8DEffect();
   } catch (e) {
-    console.warn("Audio Context init warning (CORS or Autoplay):", e);
+    console.warn("Audio Context init warning:", e);
   }
 }
 
@@ -125,14 +125,13 @@ function start8DEffect() {
     requestAnimationFrame(animate8D);
 
     if (is8DActive && pannerNode && !activeAudio.paused) {
-      panAngle += 0.012; // Smooth rotation speed
+      panAngle += 0.008; // Smooth, slow natural rotation
 
-      // 360-degree circle coordinate calculations
-      const radius = 3;
+      // Quality Loss-less smooth 3D Orbit
+      const radius = 2.5;
       const x = Math.sin(panAngle) * radius;
-      const z = Math.cos(panAngle) * radius;
+      const z = Math.cos(panAngle) * 0.5; // Controlled Z-depth to avoid audio muffling
 
-      // Position update
       if (pannerNode.positionX) {
         pannerNode.positionX.value = x;
         pannerNode.positionY.value = 0;
@@ -141,15 +140,11 @@ function start8DEffect() {
         pannerNode.setPosition(x, 0, z);
       }
 
-      // Dynamic muffling filter when sound moves behind listener (Z < 0)
-      if (z < 0) {
-        filterNode.frequency.value = 12000 + (z * 2000);
-      } else {
-        filterNode.frequency.value = 20000;
-      }
+      // Quality maintain karne ke liye frequency hamesha maximum rakhenge
+      if (filterNode) filterNode.frequency.value = 20000;
 
     } else if (pannerNode && !is8DActive) {
-      // Reset position back to front center
+      // Reset position back to center
       if (pannerNode.positionX) {
         pannerNode.positionX.value = 0;
         pannerNode.positionY.value = 0;
