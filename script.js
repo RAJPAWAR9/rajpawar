@@ -18,20 +18,24 @@ const playlist = {
     { title: "Aise Na Mujhe", artist: "Kishore Kumar", file: "Aise_Na_Mujhe" },
     { title: "Gulabi Ankhen", artist: "Mohd. Rafi", file: "gulabi aahken" },
     { title: "Kehdoon Tumhen", artist: "Kishore Kumar & Asha Bhosle", file: "Kehdoon_Tumhen" },
-    { title: "Pal Pal Dil Ke Paas", artist: "Kishore Kumar", file: "Pal_Pal_Dil_Ke_Paas" }
+    { title: "Kiska Rasta Dekhe", artist: "Kishore Kumar", file: "Kiska_Rasta_Dekhe_" },
+    { title: "Mehbooba Mehbooba", artist: "R.D. Burman", file: "Mehbooba Mehbooba" },
+    { title: "Pal Bhar Ke Liye", artist: "Kishore Kumar & Asha Bhosle", file: "Pal_Bhar_Ke_Liye_" },
+    { title: "Pal Pal Dil Ke Paas", artist: "Kishore Kumar", file: "Pal_Pal_Dil_Ke_Paas" },
+    { title: "Yunhi Tum Mujhse", artist: "Mohd. Rafi & Lata Mangeshkar", file: "Yunhi_Tum_Mujhse" }
   ],
   "3D Audio": [
     { title: "Blue Eyes (3D Remaster)", artist: "Yo Yo Honey Singh", file: "Blue Eyes - Yo Yo Honey Singh" }
   ]
 };
 
-// Sample Synced Lyrics DB
+// Synced Karaoke Lyrics DB
 const sampleLyrics = [
-  { time: 0, text: "🎵 Audio Playing..." },
+  { time: 0, text: "🎵 Audio Playing (Karaoke Ready)..." },
   { time: 10, text: "Feel the beats & rhythm" },
-  { time: 20, text: "Singing along with the song" },
+  { time: 20, text: "Sing along with the music!" },
   { time: 30, text: "Music connects everyone" },
-  { time: 45, text: "Enjoying the favorite track" },
+  { time: 45, text: "Enjoying the instrumental vibe" },
   { time: 60, text: "Harmonies in the air" }
 ];
 
@@ -49,6 +53,8 @@ let audioCtx;
 let analyser;
 let sourceNode;
 let eqFilters = [];
+let vocalFilterNode;
+let isKaraokeOn = false;
 
 let canvas, ctx;
 
@@ -226,7 +232,7 @@ function formatTime(seconds) {
   return `${mins}:${secs < 10 ? '0' : ''}${secs}`;
 }
 
-/* Web Audio API Equalizer */
+/* Web Audio API Equalizer & Vocal Cut Node */
 function initAudioVisualizer(audioElement) {
   try {
     if (!audioCtx) {
@@ -234,6 +240,7 @@ function initAudioVisualizer(audioElement) {
       analyser = audioCtx.createAnalyser();
       analyser.fftSize = 64;
 
+      // 5-band EQ filters
       const freqs = [60, 250, 1000, 4000, 16000];
       eqFilters = freqs.map((freq) => {
         const filter = audioCtx.createBiquadFilter();
@@ -242,6 +249,12 @@ function initAudioVisualizer(audioElement) {
         filter.gain.value = 0;
         return filter;
       });
+
+      // Karaoke Notch Filter
+      vocalFilterNode = audioCtx.createBiquadFilter();
+      vocalFilterNode.type = "notch";
+      vocalFilterNode.frequency.value = 1000;
+      vocalFilterNode.Q.value = 3.0;
     }
 
     if (audioCtx.state === 'suspended') audioCtx.resume();
@@ -249,18 +262,48 @@ function initAudioVisualizer(audioElement) {
     if (sourceNode) sourceNode.disconnect();
     sourceNode = audioCtx.createMediaElementSource(audioElement);
 
-    // Connect filters in chain
-    let current = sourceNode;
-    eqFilters.forEach((filter) => {
-      current.connect(filter);
-      current = filter;
-    });
-
-    current.connect(analyser);
-    analyser.connect(audioCtx.destination);
-
+    connectAudioGraph();
     startDynamicCanvas();
   } catch (e) {}
+}
+
+function connectAudioGraph() {
+  if (!sourceNode) return;
+  sourceNode.disconnect();
+
+  let current = sourceNode;
+
+  // Apply Karaoke Filter if Active
+  if (isKaraokeOn && vocalFilterNode) {
+    current.connect(vocalFilterNode);
+    current = vocalFilterNode;
+  }
+
+  // Connect EQ Filter Chain
+  eqFilters.forEach((filter) => {
+    current.connect(filter);
+    current = filter;
+  });
+
+  current.connect(analyser);
+  analyser.connect(audioCtx.destination);
+}
+
+function toggleKaraokeMode() {
+  isKaraokeOn = !isKaraokeOn;
+  const btn = document.getElementById('karaoke-btn');
+  
+  if (isKaraokeOn) {
+    btn.textContent = "🎤 Karaoke Mode: ON";
+    btn.style.background = "#00f2fe";
+    btn.style.color = "#000";
+  } else {
+    btn.textContent = "🎤 Karaoke Mode: OFF";
+    btn.style.background = "rgba(255, 255, 255, 0.05)";
+    btn.style.color = "#ccc";
+  }
+
+  connectAudioGraph();
 }
 
 /* Dynamic Ambient Gradient Canvas */
@@ -391,7 +434,9 @@ document.addEventListener('DOMContentLoaded', () => {
     activeAudio.playbackRate = val;
   };
 
-  // Equalizer UI Controls
+  // Equalizer & Karaoke Buttons
+  document.getElementById('karaoke-btn').onclick = toggleKaraokeMode;
+
   document.getElementById('eq-toggle-btn').onclick = () => {
     document.getElementById('eq-panel').classList.toggle('hidden');
   };
