@@ -80,11 +80,11 @@ body {
   overflow-x: auto;
   margin-bottom: 20px;
   padding-bottom: 5px;
-  scrollbar-width: none; /* Firefox */
+  scrollbar-width: none;
 }
 
 .category-buttons::-webkit-scrollbar {
-  display: none; /* Chrome/Safari */
+  display: none;
 }
 
 .cat-btn {
@@ -219,7 +219,6 @@ body {
   font-weight: bold;
 }
 
-/* Extra Controls Sliders Fix for Mobile */
 .extra-controls-row {
   display: flex;
   flex-wrap: wrap;
@@ -313,7 +312,6 @@ body {
   accent-color: #00f2fe;
 }
 
-/* Designer Box Styling Fix */
 .designer-box {
   height: 50px;
   display: flex;
@@ -327,7 +325,6 @@ body {
   width: 100%;
 }
 
-/* Glowing Dynamic Text Effect */
 .glowing-text {
   font-size: 14px;
   font-weight: 700;
@@ -338,7 +335,6 @@ body {
   text-align: center;
 }
 
-/* Multi-Color Glowing Animation */
 @keyframes colorGlow {
   0% {
     color: #00f2fe;
@@ -397,7 +393,6 @@ body {
   word-break: break-word;
 }
 
-/* Specific Mobile Screen Adjustments */
 @media (max-width: 480px) {
   body {
     padding: 8px;
