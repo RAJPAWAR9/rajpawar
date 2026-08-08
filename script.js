@@ -79,11 +79,12 @@ const activeAudio = new Audio();
 activeAudio.crossOrigin = "anonymous";
 
 let globalVolume = 1;
-let crossfadeTime = 10; // Default 10s crossfade
+let crossfadeTime = 10;
 
 let audioCtx, analyser, sourceNode, vocalFilterNode, eqFilters = [];
 let isKaraokeOn = false;
 let canvas, ctx;
+let crossfadeInterval = null;
 
 function buildUrl(category, fileName, ext) {
   const base = (category === "90s") ? BASE_FOLDER_90S : BASE_FOLDER_2026;
@@ -120,7 +121,7 @@ function renderPlaylist(songsToRender = null) {
 
     item.onclick = () => {
       currentSongIndex = index;
-      loadAndPlaySong(currentSongIndex);
+      loadAndPlaySong(currentSongIndex, true); // true = Fast manual switch
     };
 
     playlistView.appendChild(item);
@@ -148,7 +149,7 @@ function updatePlaybackUI(isPlaying) {
   }
 }
 
-/* Audio Graph Architecture */
+/* Audio Graph Setup */
 function initAudioPipeline() {
   if (audioCtx) return;
 
@@ -159,14 +160,14 @@ function initAudioPipeline() {
 
     sourceNode = audioCtx.createMediaElementSource(activeAudio);
 
-    // Vocal Suppressor Notch
+    // Vocal Suppressor Filter
     vocalFilterNode = audioCtx.createBiquadFilter();
     vocalFilterNode.type = "peaking";
     vocalFilterNode.frequency.value = 1400;
     vocalFilterNode.Q.value = 3.0;
     vocalFilterNode.gain.value = 0;
 
-    // Equalizer
+    // Equalizer Filters
     const freqs = [60, 250, 1000, 4000, 16000];
     eqFilters = freqs.map((freq) => {
       const filter = audioCtx.createBiquadFilter();
@@ -190,7 +191,7 @@ function initAudioPipeline() {
     
     startDynamicCanvas();
   } catch (e) {
-    console.log("Audio Context local server restricts audio nodes:", e);
+    console.log("Audio Context Error:", e);
   }
 }
 
@@ -214,9 +215,15 @@ function toggleKaraokeMode() {
   }
 }
 
-function loadAndPlaySong(index) {
+/* FAST MANUAL SWITCH & CROSS-REMIX CORE LOGIC */
+function loadAndPlaySong(index, isManualTrigger = true) {
   initAudioPipeline();
   if (audioCtx && audioCtx.state === 'suspended') audioCtx.resume();
+
+  if (crossfadeInterval) {
+    clearInterval(crossfadeInterval);
+    crossfadeInterval = null;
+  }
 
   const list = displayedList.length > 0 ? displayedList : getActiveList();
   if (!list[index]) return;
@@ -230,17 +237,25 @@ function loadAndPlaySong(index) {
   const folderCat = getSongFolderCategory(song);
   const songUrl = buildUrl(folderCat, song.file, '.m4a');
 
-  if (crossfadeTime > 0 && !activeAudio.paused) {
+  // 1. MANUAL SWITCH: FAST INSTANT CHANGE (NO DELAY)
+  if (isManualTrigger) {
+    activeAudio.pause();
+    activeAudio.currentTime = 0;
+    startNewTrack(songUrl);
+  } 
+  // 2. AUTO NEXT: SEAMLESS CROSS-REMIX FADE
+  else if (crossfadeTime > 0 && !activeAudio.paused) {
     let fadeVol = activeAudio.volume;
-    const fadeInterval = setInterval(() => {
-      if (fadeVol > 0.1) {
-        fadeVol -= 0.1;
+    crossfadeInterval = setInterval(() => {
+      if (fadeVol > 0.15) {
+        fadeVol -= 0.15;
         activeAudio.volume = fadeVol;
       } else {
-        clearInterval(fadeInterval);
+        clearInterval(crossfadeInterval);
+        crossfadeInterval = null;
         startNewTrack(songUrl);
       }
-    }, (crossfadeTime * 100) );
+    }, (crossfadeTime * 100) / 10);
   } else {
     startNewTrack(songUrl);
   }
@@ -259,13 +274,15 @@ function startNewTrack(url) {
 
   activeAudio.play().then(() => {
     updatePlaybackUI(true);
-  }).catch(() => {
+  }).catch((err) => {
+    console.log("Playback interrupted:", err);
     updatePlaybackUI(false);
   });
 }
 
 function renderLyrics(lyrics) {
   const scrollContainer = document.getElementById('lyrics-scroll');
+  if (!scrollContainer) return;
   scrollContainer.innerHTML = '';
   lyrics.forEach((line) => {
     const p = document.createElement('p');
@@ -291,7 +308,7 @@ function syncLyrics(currentTime) {
   if (lines[activeIndex]) {
     lines[activeIndex].classList.add('active');
     const scrollContainer = document.getElementById('lyrics-scroll');
-    scrollContainer.style.transform = `translateY(-${activeIndex * 26}px)`;
+    if (scrollContainer) scrollContainer.style.transform = `translateY(-${activeIndex * 26}px)`;
   }
 }
 
@@ -302,17 +319,18 @@ activeAudio.addEventListener('timeupdate', () => {
 
   if (activeAudio.duration) {
     const percent = (activeAudio.currentTime / activeAudio.duration) * 100;
-    progress.style.width = `${percent}%`;
-    currentTimeElem.textContent = formatTime(activeAudio.currentTime);
-    durationElem.textContent = formatTime(activeAudio.duration);
+    if (progress) progress.style.width = `${percent}%`;
+    if (currentTimeElem) currentTimeElem.textContent = formatTime(activeAudio.currentTime);
+    if (durationElem) durationElem.textContent = formatTime(activeAudio.duration);
     syncLyrics(activeAudio.currentTime);
   }
 });
 
+// Auto Next triggers Crossfade / Remix mode
 activeAudio.addEventListener('ended', () => {
   const list = displayedList.length > 0 ? displayedList : getActiveList();
   currentSongIndex = (currentSongIndex + 1) % list.length;
-  loadAndPlaySong(currentSongIndex);
+  loadAndPlaySong(currentSongIndex, false); // false = Cross-Remix Mode
 });
 
 function formatTime(seconds) {
@@ -446,7 +464,7 @@ document.addEventListener('DOMContentLoaded', () => {
         document.querySelectorAll('.cat-btn').forEach(b => b.classList.remove('active'));
         e.target.classList.add('active');
         displayedList = getActiveList();
-        loadAndPlaySong(currentSongIndex);
+        loadAndPlaySong(currentSongIndex, true);
       };
     }
   });
@@ -463,16 +481,18 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   };
 
+  // Next Button: Fast Manual Switch
   document.getElementById('next-btn').onclick = () => {
     const list = displayedList.length > 0 ? displayedList : getActiveList();
     currentSongIndex = (currentSongIndex + 1) % list.length;
-    loadAndPlaySong(currentSongIndex);
+    loadAndPlaySong(currentSongIndex, true);
   };
 
+  // Prev Button: Fast Manual Switch
   document.getElementById('prev-btn').onclick = () => {
     const list = displayedList.length > 0 ? displayedList : getActiveList();
     currentSongIndex = (currentSongIndex - 1 + list.length) % list.length;
-    loadAndPlaySong(currentSongIndex);
+    loadAndPlaySong(currentSongIndex, true);
   };
 
   document.getElementById('progress-container').onclick = (e) => {
