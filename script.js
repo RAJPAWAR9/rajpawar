@@ -66,22 +66,122 @@ let currentCategory = "Trending";
 let currentSongIndex = 0;
 let displayedList = [];
 
-// DUAL AUDIO ENGINE FOR SEAMLESS DYNAMIC CROSS-REMIX
+// DUAL AUDIO ENGINE FOR MIXING & FAST SWITCH
 let playerA = new Audio();
 let playerB = new Audio();
+playerA.crossOrigin = "anonymous";
+playerB.crossOrigin = "anonymous";
+
 let activeAudio = playerA;
 let nextAudio = playerB;
 
 let globalVolume = 1;
-let crossfadeTime = 10; // 10 Seconds Crossfade
+let crossfadeTime = 10;
 let crossfadeStarted = false;
 
-let audioCtx, analyser, sourceNode, vocalFilterNode, eqFilters = [];
-let isKaraokeOn = false;
+// WEB AUDIO API FOR GLOW BEAT SYNC & CANVAS
+let audioCtx, analyser, srcNodeA, srcNodeB;
+let canvas, ctx;
 
-function buildUrl(category, fileName, ext) {
-  const base = (category === "90s") ? BASE_FOLDER_90S : BASE_FOLDER_2026;
-  const fullPath = `${base}/${fileName}${ext}`;
+function initBeatSync() {
+  if (audioCtx) return;
+  try {
+    audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    analyser = audioCtx.createAnalyser();
+    analyser.fftSize = 64;
+
+    srcNodeA = audioCtx.createMediaElementSource(playerA);
+    srcNodeB = audioCtx.createMediaElementSource(playerB);
+
+    srcNodeA.connect(analyser);
+    srcNodeB.connect(analyser);
+
+    analyser.connect(audioCtx.destination);
+    
+    startBeatSyncAnimation();
+  } catch (e) {
+    console.log("Audio Context initialization error / CORS:", e);
+  }
+}
+
+function startBeatSyncAnimation() {
+  canvas = document.getElementById('ambient-canvas');
+  if (canvas) {
+    ctx = canvas.getContext('2d');
+    canvas.width = window.innerWidth;
+    canvas.height = window.innerHeight;
+  }
+
+  const albumArt = document.getElementById('album-art-box');
+  const bufferLength = analyser.frequencyBinCount;
+  const dataArray = new Uint8Array(bufferLength);
+
+  function renderFrame() {
+    requestAnimationFrame(renderFrame);
+
+    analyser.getByteFrequencyData(dataArray);
+
+    // Calculate Bass Energy (Low Frequencies)
+    let bassSum = 0;
+    const bassBins = Math.floor(bufferLength * 0.3);
+    for (let i = 0; i < bassBins; i++) {
+      bassSum += dataArray[i];
+    }
+    let bassAvg = bassSum / bassBins; // 0 - 255
+
+    // Overall Average Energy
+    let totalSum = 0;
+    for (let i = 0; i < bufferLength; i++) {
+      totalSum += dataArray[i];
+    }
+    let totalAvg = totalSum / bufferLength;
+
+    // 1. DYNAMIC GLOW & PULSE ON ALBUM ART / PLAYER
+    if (albumArt && !activeAudio.paused) {
+      let glowRadius = 15 + (bassAvg / 255) * 45; // Glow intensity
+      let scaleFactor = 1 + (bassAvg / 255) * 0.06; // Pulse effect on beat
+      let hue = (Date.now() / 20) % 360;
+
+      albumArt.style.boxShadow = `0 0 ${glowRadius}px hsla(${hue}, 100%, 50%, 0.8), 0 0 ${glowRadius * 1.8}px hsla(${hue + 40}, 100%, 50%, 0.4)`;
+      albumArt.style.transform = `scale(${scaleFactor})`;
+    } else if (albumArt) {
+      albumArt.style.boxShadow = '0 8px 32px rgba(0,0,0,0.4)';
+      albumArt.style.transform = 'scale(1)';
+    }
+
+    // 2. AMBIENT BACKGROUND BEAT CANVAS
+    if (ctx && canvas) {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+      if (!activeAudio.paused) {
+        let hue1 = (Date.now() / 25) % 360;
+        let hue2 = (hue1 + 80) % 360;
+        let pulseRadius = 100 + (bassAvg / 255) * (canvas.width * 0.4);
+
+        let gradient = ctx.createRadialGradient(
+          canvas.width / 2, canvas.height / 2, 20,
+          canvas.width / 2, canvas.height / 2, pulseRadius
+        );
+
+        gradient.addColorStop(0, `hsla(${hue1}, 100%, 50%, ${0.2 + (bassAvg / 255) * 0.3})`);
+        gradient.addColorStop(0.6, `hsla(${hue2}, 100%, 40%, ${0.1 + (totalAvg / 255) * 0.15})`);
+        gradient.addColorStop(1, 'rgba(0,0,0,0)');
+
+        ctx.fillStyle = gradient;
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+      }
+    }
+  }
+
+  renderFrame();
+}
+
+// Dynamic Safe Path Generator (Fixed 90s Bug)
+function buildUrl(song) {
+  const is90s = playlist["90s"].some(s => s.file === song.file);
+  const basePath = is90s ? BASE_FOLDER_90S : BASE_FOLDER_2026;
+  
+  const fullPath = `${basePath}/${song.file}.m4a`;
   return fullPath.split('/').map(part => encodeURIComponent(part)).join('/');
 }
 
@@ -90,11 +190,6 @@ function getActiveList() {
     return [...playlist["Trending"], ...playlist["90s"], ...playlist["3D Audio"]];
   }
   return playlist[currentCategory] || playlist["Trending"];
-}
-
-function getSongFolderCategory(song) {
-  if (playlist["90s"].some(s => s.title === song.title)) return "90s";
-  return "Trending";
 }
 
 function renderPlaylist(songsToRender = null) {
@@ -119,15 +214,19 @@ function renderPlaylist(songsToRender = null) {
 
     item.onclick = () => {
       currentSongIndex = index;
-      loadAndPlaySong(currentSongIndex, true); // true = INSTANT MANUAL SWITCH
+      loadAndPlaySong(currentSongIndex, true); // Instant Manual Switch
     };
 
     playlistView.appendChild(item);
   });
 }
 
-// MAIN FUNCTION TO LOAD & PLAY WITH FAST SWITCH + REMIX SUPPORT
 function loadAndPlaySong(index, isManualTrigger = true) {
+  initBeatSync();
+  if (audioCtx && audioCtx.state === 'suspended') {
+    audioCtx.resume();
+  }
+
   const list = displayedList.length > 0 ? displayedList : getActiveList();
   if (!list[index]) return;
 
@@ -136,14 +235,11 @@ function loadAndPlaySong(index, isManualTrigger = true) {
   document.getElementById('artist-name').textContent = song.artist;
   document.getElementById('category-badge').textContent = `${currentCategory.toUpperCase()} HITS`;
 
-  const folderCat = getSongFolderCategory(song);
-  const songUrl = buildUrl(folderCat, song.file, '.m4a');
+  const songUrl = buildUrl(song);
 
-  // CASE 1: INSTANT MANUAL CLICK (0 DELAY)
   if (isManualTrigger) {
     crossfadeStarted = false;
     
-    // Stop both players instantly
     playerA.pause();
     playerB.pause();
     playerA.currentTime = 0;
@@ -154,12 +250,13 @@ function loadAndPlaySong(index, isManualTrigger = true) {
 
     activeAudio.src = songUrl;
     activeAudio.volume = globalVolume;
-    activeAudio.playbackRate = parseFloat(document.getElementById('speed-slider').value || 1);
+    activeAudio.playbackRate = parseFloat(document.getElementById('speed-slider')?.value || 1);
 
-    activeAudio.play().then(() => updatePlaybackUI(true)).catch(() => updatePlaybackUI(false));
-  } 
-  // CASE 2: AUTOMATIC CROSS-REMIX TRIGGERED BY TIMEUPDATE
-  else {
+    activeAudio.play().then(() => updatePlaybackUI(true)).catch((err) => {
+      console.log("Audio Play Failed:", err);
+      updatePlaybackUI(false);
+    });
+  } else {
     activeAudio = nextAudio;
     nextAudio = (activeAudio === playerA) ? playerB : playerA;
     crossfadeStarted = false;
@@ -168,13 +265,11 @@ function loadAndPlaySong(index, isManualTrigger = true) {
   renderPlaylist(displayedList);
 }
 
-// 10s DYNAMIC CROSSFADE ENGINE
 function handleCrossfadeCheck() {
   if (crossfadeStarted || !activeAudio.duration || crossfadeTime <= 0) return;
 
   const remainingTime = activeAudio.duration - activeAudio.currentTime;
 
-  // Jab gaane me exactly 10 Seconds bachhe honge tab Remix start hoga
   if (remainingTime <= crossfadeTime && remainingTime > 0) {
     crossfadeStarted = true;
 
@@ -183,16 +278,13 @@ function handleCrossfadeCheck() {
     currentSongIndex = nextIndex;
 
     const nextSong = list[nextIndex];
-    const folderCat = getSongFolderCategory(nextSong);
-    const nextUrl = buildUrl(folderCat, nextSong.file, '.m4a');
+    const nextUrl = buildUrl(nextSong);
 
-    // Agla audio background me low volume par play kar do
     nextAudio.src = nextUrl;
     nextAudio.volume = 0;
-    nextAudio.playbackRate = parseFloat(document.getElementById('speed-slider').value || 1);
+    nextAudio.playbackRate = parseFloat(document.getElementById('speed-slider')?.value || 1);
     nextAudio.play();
 
-    // Fade Out current audio & Fade In next audio over 10 seconds
     const intervalTime = 100;
     const steps = (crossfadeTime * 1000) / intervalTime;
     const volumeStep = globalVolume / steps;
@@ -201,14 +293,12 @@ function handleCrossfadeCheck() {
     const fadeTimer = setInterval(() => {
       currentStep++;
 
-      // Active player ko dhire dhire silent karo
       if (activeAudio.volume > volumeStep) {
         activeAudio.volume = Math.max(0, activeAudio.volume - volumeStep);
       } else {
         activeAudio.volume = 0;
       }
 
-      // Next player ki aawaz badhao (REMIX MIXING EFFECT)
       if (nextAudio.volume < globalVolume - volumeStep) {
         nextAudio.volume = Math.min(globalVolume, nextAudio.volume + volumeStep);
       } else {
@@ -219,21 +309,20 @@ function handleCrossfadeCheck() {
         clearInterval(fadeTimer);
         activeAudio.pause();
         activeAudio.currentTime = 0;
-        
-        // Swap players
-        loadAndPlaySong(currentSongIndex, false);
+ loadAndPlaySong(currentSongIndex, false);
       }
     }, intervalTime);
   }
 }
 
-// Global Progress & Time Tracker
 function attachAudioEvents(audioPlayer) {
   audioPlayer.addEventListener('timeupdate', () => {
     if (audioPlayer === activeAudio) {
       if (activeAudio.duration) {
         const percent = (activeAudio.currentTime / activeAudio.duration) * 100;
-        document.getElementById('progress').style.width = `${percent}%`;
+        const progress = document.getElementById('progress');
+        if (progress) progress.style.width = `${percent}%`;
+        
         document.getElementById('current-time').textContent = formatTime(activeAudio.currentTime);
         document.getElementById('total-duration').textContent = formatTime(activeAudio.duration);
       }
@@ -279,7 +368,6 @@ function formatTime(seconds) {
 document.addEventListener('DOMContentLoaded', () => {
   displayedList = getActiveList();
 
-  // Search Bar Event
   const searchInput = document.getElementById('search-input');
   if (searchInput) {
     searchInput.addEventListener('input', (e) => {
@@ -292,7 +380,6 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   }
 
-  // Category Switchers
   const catButtons = {
     'btn-2026': 'Trending',
     'btn-90s': '90s',
@@ -314,8 +401,12 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   });
 
-  // Play/Pause Button
   document.getElementById('play-btn').onclick = () => {
+    initBeatSync();
+    if (audioCtx && audioCtx.state === 'suspended') {
+      audioCtx.resume();
+    }
+
     if (activeAudio.paused) {
       activeAudio.play();
       updatePlaybackUI(true);
@@ -326,21 +417,18 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   };
 
-  // Next Button -> FAST MANUAL CHANGE
   document.getElementById('next-btn').onclick = () => {
     const list = displayedList.length > 0 ? displayedList : getActiveList();
     currentSongIndex = (currentSongIndex + 1) % list.length;
     loadAndPlaySong(currentSongIndex, true);
   };
 
-  // Prev Button -> FAST MANUAL CHANGE
   document.getElementById('prev-btn').onclick = () => {
     const list = displayedList.length > 0 ? displayedList : getActiveList();
     currentSongIndex = (currentSongIndex - 1 + list.length) % list.length;
     loadAndPlaySong(currentSongIndex, true);
   };
 
-  // Progress Bar Seek Event
   document.getElementById('progress-container').onclick = (e) => {
     const rect = e.currentTarget.getBoundingClientRect();
     const clickX = e.clientX - rect.left;
@@ -349,7 +437,6 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   };
 
-  // Crossfade Time Adjustment Slider
   const crossSlider = document.getElementById('crossfade-slider');
   if (crossSlider) {
     crossSlider.oninput = (e) => {
@@ -359,7 +446,6 @@ document.addEventListener('DOMContentLoaded', () => {
     };
   }
 
-  // Master Volume Control
   const volSlider = document.getElementById('volume-slider');
   if (volSlider) {
     volSlider.oninput = (e) => {
