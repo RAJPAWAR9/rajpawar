@@ -54,6 +54,11 @@ const playlist = {
     { title: "Pal Bhar Ke Liye", artist: "Kishore Kumar & Asha Bhosle", file: "Pal_Bhar_Ke_Liye_" },
     { title: "Pal Pal Dil Ke Paas", artist: "Kishore Kumar", file: "Pal_Pal_Dil_Ke_Paas" },
     { title: "Yunhi Tum Mujhse", artist: "Mohd. Rafi & Lata Mangeshkar", file: "Yunhi_Tum_Mujhse" }
+  ],
+  "3D Audio": [
+    { title: "Dil Ka Jo Haal Hai (3D)", artist: "Abhijeet, Shreya Ghoshal", file: "Dil Ka Jo Haal Hai - Abhijeet, Shreya Ghoshal" },
+    { title: "Blue Eyes (3D Remaster)", artist: "Yo Yo Honey Singh", file: "Blue Eyes - Yo Yo Honey Singh" },
+    { title: "Badtameez Dil (3D Experience)", artist: "Benny Dayal", file: "Badtameez Dil - Benny Dayal, Shefali Alvares" }
   ]
 };
 
@@ -84,14 +89,14 @@ function initBeatSync() {
     srcNodeA = audioCtx.createMediaElementSource(playerA);
     srcNodeB = audioCtx.createMediaElementSource(playerB);
 
-    // Direct clean connection to Analyser (No sound processing/distortion)
     srcNodeA.connect(analyser);
     srcNodeB.connect(analyser);
-    analyser.connect(audioCtx.destination);
 
+    analyser.connect(audioCtx.destination);
+    
     startBeatSyncAnimation();
   } catch (e) {
-    console.warn("Audio Context init warning:", e);
+    console.warn("Audio Context init warning (CORS or Autoplay):", e);
   }
 }
 
@@ -165,6 +170,7 @@ function startBeatSyncAnimation() {
   renderFrame();
 }
 
+// Build URL with Format Fallback (.m4a & .mp3)
 function buildUrl(song, extension = "m4a") {
   const is90s = playlist["90s"].some(s => s.file === song.file);
   const basePath = is90s ? BASE_FOLDER_90S : BASE_FOLDER_2026;
@@ -174,7 +180,7 @@ function buildUrl(song, extension = "m4a") {
 
 function getActiveList() {
   if (currentCategory === "All") {
-    return [...playlist["Trending"], ...playlist["90s"]];
+    return [...playlist["Trending"], ...playlist["90s"], ...playlist["3D Audio"]];
   }
   return playlist[currentCategory] || playlist["Trending"];
 }
@@ -183,10 +189,10 @@ function renderPlaylist(songsToRender = null) {
   const playlistView = document.getElementById('playlist-view');
   const trackCount = document.getElementById('track-count');
   displayedList = songsToRender || getActiveList();
-
+  
   if (trackCount) trackCount.textContent = `${displayedList.length} Songs`;
   if (!playlistView) return;
-
+  
   playlistView.innerHTML = '';
 
   displayedList.forEach((song, index) => {
@@ -218,6 +224,7 @@ function playAudioWithFallback(audioElement, song) {
     playPromise.then(() => {
       updatePlaybackUI(true);
     }).catch(() => {
+      // If .m4a fails, fallback to .mp3 automatically
       const mp3Url = buildUrl(song, "mp3");
       audioElement.src = mp3Url;
       audioElement.play().then(() => {
@@ -246,7 +253,7 @@ function loadAndPlaySong(index, isManualTrigger = true) {
 
   if (isManualTrigger) {
     crossfadeStarted = false;
-
+    
     playerA.pause();
     playerB.pause();
     playerA.currentTime = 0;
@@ -323,7 +330,7 @@ function attachAudioEvents(audioPlayer) {
         const percent = (activeAudio.currentTime / activeAudio.duration) * 100;
         const progress = document.getElementById('progress');
         if (progress) progress.style.width = `${percent}%`;
-
+        
         document.getElementById('current-time').textContent = formatTime(activeAudio.currentTime);
         document.getElementById('total-duration').textContent = formatTime(activeAudio.duration);
       }
@@ -384,6 +391,7 @@ document.addEventListener('DOMContentLoaded', () => {
   const catButtons = {
     'btn-2026': 'Trending',
     'btn-90s': '90s',
+    'btn-3d': '3D Audio',
     'btn-all': 'All'
   };
 
@@ -400,14 +408,6 @@ document.addEventListener('DOMContentLoaded', () => {
       };
     }
   });
-
-  const eqToggleBtn = document.getElementById('eq-toggle-btn');
-  const eqPanel = document.getElementById('eq-panel');
-  if (eqToggleBtn && eqPanel) {
-    eqToggleBtn.onclick = () => {
-      eqPanel.classList.toggle('hidden');
-    };
-  }
 
   document.getElementById('play-btn').onclick = () => {
     initBeatSync();
@@ -459,17 +459,6 @@ document.addEventListener('DOMContentLoaded', () => {
     volSlider.oninput = (e) => {
       globalVolume = parseFloat(e.target.value);
       activeAudio.volume = globalVolume;
-    };
-  }
-
-  const speedSlider = document.getElementById('speed-slider');
-  if (speedSlider) {
-    speedSlider.oninput = (e) => {
-      const val = parseFloat(e.target.value);
-      activeAudio.playbackRate = val;
-      nextAudio.playbackRate = val;
-      const speedVal = document.getElementById('speed-val');
-      if (speedVal) speedVal.textContent = `${val.toFixed(1)}x`;
     };
   }
 
