@@ -1,8 +1,8 @@
-// Base Folders Configuration based on local directory
+// Base Folders Configuration
 const BASE_FOLDER_2026 = "song/2026 music";
 const BASE_FOLDER_90S = "song/2026 music/90s";
 
-// Theme Configuration (Added 3D Audio Theme)
+// Theme Configuration
 const themes = {
   "2026": {
     badge: "2026 HITS",
@@ -21,6 +21,7 @@ const themes = {
   }
 };
 
+// Complete Songs Playlist
 const playlist = {
   "2026": [
     { title: "Aa Re Pritam Pyaare", artist: "Mamta Sharma, Sajid-Wajid", file: "Aa Re Pritam Pyaare" },
@@ -80,7 +81,8 @@ const playlist = {
   ],
   "3D Audio": [
     { title: "Dil Ka Jo Haal Hai (3D)", artist: "Abhijeet, Shreya Ghoshal", file: "Dil Ka Jo Haal Hai - Abhijeet, Shreya Ghoshal" },
-    { title: "Blue Eyes (3D Remaster)", artist: "Yo Yo Honey Singh", file: "Blue Eyes - Yo Yo Honey Singh" }
+    { title: "Blue Eyes (3D Remaster)", artist: "Yo Yo Honey Singh", file: "Blue Eyes - Yo Yo Honey Singh" },
+    { title: "Badtameez Dil (3D Experience)", artist: "Benny Dayal", file: "Badtameez Dil - Benny Dayal, Shefali Alvares" }
   ]
 };
 
@@ -103,8 +105,8 @@ const categoryBadge = document.getElementById('category-badge');
 
 function buildUrl(category, fileName, extension) {
   const base = (category === "90s") ? BASE_FOLDER_90S : BASE_FOLDER_2026;
-  const rawPath = `${base}/${fileName}${extension}`;
-  return rawPath.split('/').map(part => encodeURIComponent(part)).join('/');
+  const fullPath = `${base}/${fileName}${extension}`;
+  return fullPath.split('/').map(part => encodeURIComponent(part)).join('/');
 }
 
 // Extension Fallback
@@ -229,7 +231,6 @@ if (playBtn) {
 }
 
 function switchCategory(categoryName, btnElement) {
-  // Support 3D Audio, 90s, and 2026 buttons
   if (categoryName.includes("3D")) {
     currentCategory = "3D Audio";
   } else if (categoryName.includes("90")) {
