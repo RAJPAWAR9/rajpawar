@@ -3,10 +3,13 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Music Player</title>
+  <title>Pro Music Player</title>
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
+
+  <!-- Dynamic Ambient Canvas Background -->
+  <canvas id="ambient-canvas"></canvas>
 
   <div class="player-wrapper" id="player-wrapper">
     <div class="player-container">
@@ -32,10 +35,14 @@
 
       <!-- Right Panel -->
       <div class="right-panel">
+        <div class="top-bar-tools">
+          <button class="icon-tool-btn" id="pip-btn" title="Picture in Picture Mini-Player">📺 Mini Player</button>
+          <button class="icon-tool-btn" id="eq-toggle-btn" title="Toggle Equalizer">🎚️ Equalizer</button>
+        </div>
+
         <div class="song-details">
           <span id="category-badge">TRENDING HITS</span>
           
-          <!-- Album Art Box -->
           <div class="album-art-container" id="album-art-box">
             <div class="album-art-placeholder">🎵</div>
           </div>
@@ -43,13 +50,41 @@
           <h2 id="song-title">Select a Song</h2>
           <p id="artist-name">Artist Name</p>
 
-          <!-- Sound Wave Visualizer -->
+          <!-- Wave Visualizer -->
           <div class="wave-visualizer" id="wave-bars">
             <div class="bar"></div>
             <div class="bar"></div>
             <div class="bar"></div>
             <div class="bar"></div>
             <div class="bar"></div>
+          </div>
+        </div>
+
+        <!-- Equalizer Overlay Box -->
+        <div class="eq-panel hidden" id="eq-panel">
+          <div class="eq-header">
+            <span>5-Band EQ</span>
+            <select id="eq-presets">
+              <option value="flat">Flat</option>
+              <option value="bass">Bass Boost</option>
+              <option value="pop">Pop</option>
+              <option value="rock">Rock</option>
+              <option value="vocal">Vocal Booster</option>
+            </select>
+          </div>
+          <div class="eq-sliders">
+            <div class="eq-band"><span>60Hz</span><input type="range" class="eq-band-slider" data-band="0" min="-12" max="12" value="0"></div>
+            <div class="eq-band"><span>250Hz</span><input type="range" class="eq-band-slider" data-band="1" min="-12" max="12" value="0"></div>
+            <div class="eq-band"><span>1kHz</span><input type="range" class="eq-band-slider" data-band="2" min="-12" max="12" value="0"></div>
+            <div class="eq-band"><span>4kHz</span><input type="range" class="eq-band-slider" data-band="3" min="-12" max="12" value="0"></div>
+            <div class="eq-band"><span>16kHz</span><input type="range" class="eq-band-slider" data-band="4" min="-12" max="12" value="0"></div>
+          </div>
+        </div>
+
+        <!-- Synchronized Lyrics Box -->
+        <div class="lyrics-container" id="lyrics-container">
+          <div class="lyrics-scroll" id="lyrics-scroll">
+            <p class="lyric-line active" data-time="0">🎵 Play a song to view synced lyrics</p>
           </div>
         </div>
 
@@ -69,6 +104,12 @@
             <button class="control-btn" id="next-btn">⏭</button>
           </div>
 
+          <!-- Speed & Pitch Controls -->
+          <div class="slider-group">
+            <span>Speed: <b id="speed-val">1.0x</b></span>
+            <input type="range" id="speed-slider" min="0.5" max="2.0" step="0.1" value="1.0">
+          </div>
+
           <div class="slider-group">
             <span>Crossfade</span>
             <input type="range" id="crossfade-slider" min="0" max="15" value="10">
@@ -84,6 +125,8 @@
 
     </div>
   </div>
+
+  <video id="pip-video" style="display:none;" autoplay muted></video>
 
   <script src="script.js"></script>
 </body>
