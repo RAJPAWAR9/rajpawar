@@ -1,4 +1,4 @@
-// Exact Base Paths matching your GitHub Repository
+// Base Folders Configuration
 const BASE_FOLDER_2026 = "song/2026 music";
 const BASE_FOLDER_90S = "song/2026 music/90s";
 
@@ -21,7 +21,7 @@ const themes = {
   }
 };
 
-// Playlist array mapped exactly with your Repo File Names
+// Complete Songs Playlist
 const playlist = {
   "2026": [
     { title: "Aa Re Pritam Pyaare", artist: "Mamta Sharma, Sajid-Wajid", file: "Aa Re Pritam Pyaare" },
@@ -91,19 +91,8 @@ let currentCategory = "2026";
 let currentSongIndex = 0;
 let testedExtensionIndex = 0;
 
-// Format priority based on your GitHub files
 const possibleFormats = ['.m4a', '.mp3', '.wav'];
-
-const audio = document.getElementById('audio') || new Audio();
-const playBtn = document.getElementById('play-btn');
-const disc = document.getElementById('disc');
-const progress = document.getElementById('progress');
-const progressContainer = document.getElementById('progress-container');
-const lyricsContent = document.getElementById('lyrics-content');
-const playlistView = document.getElementById('playlist-view');
-const trackCount = document.getElementById('track-count');
-const bgGlow = document.getElementById('bg-glow');
-const categoryBadge = document.getElementById('category-badge');
+const audio = new Audio();
 
 function buildUrl(category, fileName, extension) {
   const base = (category === "90s") ? BASE_FOLDER_90S : BASE_FOLDER_2026;
@@ -111,7 +100,7 @@ function buildUrl(category, fileName, extension) {
   return fullPath.split('/').map(part => encodeURIComponent(part)).join('/');
 }
 
-// Extension Fallback Logic
+// Extension Fallback
 audio.addEventListener('error', () => {
   testedExtensionIndex++;
   if (playlist[currentCategory] && testedExtensionIndex < possibleFormats.length) {
@@ -121,58 +110,57 @@ audio.addEventListener('error', () => {
       audio.load();
       audio.play().catch(() => {});
     }
-  } else {
-    if (lyricsContent && playlist[currentCategory] && playlist[currentCategory][currentSongIndex]) {
-      lyricsContent.textContent = `⚠️ File not found: "${playlist[currentCategory][currentSongIndex].file}"`;
-      lyricsContent.style.color = "#ff4d4d";
-    }
   }
 });
 
 function applyTheme(category) {
   const theme = themes[category] || themes["2026"];
-  
+  const bgGlow = document.getElementById('bg-glow');
+  const categoryBadge = document.getElementById('category-badge');
+  const progress = document.getElementById('progress');
+  const playBtn = document.getElementById('play-btn');
+
   if (bgGlow) bgGlow.style.background = theme.glow;
   if (categoryBadge) {
     categoryBadge.textContent = theme.badge;
     categoryBadge.style.color = theme.accentColor;
     categoryBadge.style.borderColor = theme.accentColor;
-    categoryBadge.style.background = `${theme.accentColor}1d`;
-  }
-
-  const discCenter = document.querySelector('.disc-center');
-  if (discCenter) {
-    discCenter.style.background = theme.accentColor;
-    discCenter.style.boxShadow = `0 0 12px ${theme.accentColor}`;
   }
   if (progress) progress.style.background = theme.accentColor;
-  if (playBtn) {
-    playBtn.style.background = theme.accentColor;
-    playBtn.style.boxShadow = `0 8px 25px ${theme.accentColor}66`;
+  if (playBtn) playBtn.style.background = theme.accentColor;
+}
+
+function getActiveList() {
+  if (currentCategory === "All") {
+    return [...playlist["2026"], ...playlist["90s"], ...playlist["3D Audio"]];
   }
+  return playlist[currentCategory] || playlist["2026"];
 }
 
 function renderPlaylist() {
+  const playlistView = document.getElementById('playlist-view') || document.querySelector('.playlist-container') || document.querySelector('.playlist') || document.querySelector('[class*="playlist"]');
+  const trackCount = document.getElementById('track-count');
+  
+  const currentList = getActiveList();
+  if (trackCount) trackCount.textContent = `${currentList.length} Songs`;
+
   if (!playlistView) return;
   playlistView.innerHTML = '';
-  const currentList = playlist[currentCategory] || [];
-  if (trackCount) trackCount.textContent = `${currentList.length} Songs`;
 
   currentList.forEach((song, index) => {
     const item = document.createElement('div');
     const isActive = index === currentSongIndex;
     item.className = `song-item ${isActive ? 'active' : ''}`;
-    
-    if (isActive && themes[currentCategory]) {
-      item.style.borderColor = themes[currentCategory].accentColor;
-    }
+    item.style.padding = "10px";
+    item.style.cursor = "pointer";
+    item.style.borderBottom = "1px solid rgba(255,255,255,0.1)";
+    if (isActive) item.style.background = "rgba(255,255,255,0.1)";
 
     item.innerHTML = `
       <div class="song-info">
-        <div class="song-item-title">${index + 1}. ${song.title}</div>
-        <div class="song-item-artist">${song.artist}</div>
+        <div class="song-item-title" style="font-weight: bold; color: #fff;">${index + 1}. ${song.title}</div>
+        <div class="song-item-artist" style="font-size: 12px; color: #aaa;">${song.artist}</div>
       </div>
-      ${isActive ? `<span class="playing-icon" style="color: ${themes[currentCategory].accentColor}">♫</span>` : ''}
     `;
 
     item.onclick = () => {
@@ -186,50 +174,46 @@ function renderPlaylist() {
 }
 
 function loadSong(category, index) {
-  if (!playlist[category] || !playlist[category][index]) return;
-  
+  const currentList = getActiveList();
+  if (!currentList[index]) return;
+
   testedExtensionIndex = 0;
-  const song = playlist[category][index];
-  
-  const titleElem = document.getElementById('song-title');
-  const artistElem = document.getElementById('artist-name');
-  
+  const song = currentList[index];
+
+  const titleElem = document.getElementById('song-title') || document.querySelector('.song-title') || document.querySelector('[class*="title"]');
+  const artistElem = document.getElementById('artist-name') || document.querySelector('.artist-name') || document.querySelector('[class*="artist"]');
+
   if (titleElem) titleElem.textContent = song.title;
   if (artistElem) artistElem.textContent = song.artist;
-  
+
   applyTheme(category);
 
-  if (lyricsContent) {
-    lyricsContent.textContent = `Playing: ${song.title}`;
-    if (themes[category]) lyricsContent.style.color = themes[category].accentColor;
+  // Determine source folder category
+  let songFolderCat = category;
+  if (category === "All") {
+    songFolderCat = playlist["90s"].some(s => s.title === song.title) ? "90s" : "2026";
   }
 
-  audio.src = buildUrl(category, song.file, possibleFormats[testedExtensionIndex]);
+  audio.src = buildUrl(songFolderCat, song.file, possibleFormats[testedExtensionIndex]);
   audio.load();
   renderPlaylist();
 }
 
 function playAudio() {
+  const playBtn = document.getElementById('play-btn') || document.querySelector('.play-btn');
+  const disc = document.getElementById('disc');
   audio.play().then(() => {
     if (playBtn) playBtn.textContent = '❚❚';
     if (disc) disc.classList.add('playing');
-  }).catch((e) => console.log("User interaction required:", e));
+  }).catch((e) => console.log("Click play to start:", e));
 }
 
 function pauseAudio() {
+  const playBtn = document.getElementById('play-btn') || document.querySelector('.play-btn');
+  const disc = document.getElementById('disc');
   audio.pause();
   if (playBtn) playBtn.textContent = '▶';
   if (disc) disc.classList.remove('playing');
-}
-
-if (playBtn) {
-  playBtn.addEventListener('click', () => {
-    if (audio.paused) {
-      playAudio();
-    } else {
-      pauseAudio();
-    }
-  });
 }
 
 function switchCategory(categoryName, btnElement) {
@@ -237,74 +221,66 @@ function switchCategory(categoryName, btnElement) {
     currentCategory = "3D Audio";
   } else if (categoryName.includes("90")) {
     currentCategory = "90s";
+  } else if (categoryName.includes("All")) {
+    currentCategory = "All";
   } else {
     currentCategory = "2026";
   }
 
   currentSongIndex = 0;
-  
-  document.querySelectorAll('.cat-btn').forEach(btn => btn.classList.remove('active'));
+
+  document.querySelectorAll('.cat-btn, button').forEach(btn => btn.classList.remove('active'));
   if (btnElement) btnElement.classList.add('active');
 
   loadSong(currentCategory, currentSongIndex);
-  pauseAudio();
 }
 
-const nextBtn = document.getElementById('next-btn');
-if (nextBtn) {
-  nextBtn.addEventListener('click', () => {
-    const total = playlist[currentCategory].length;
-    currentSongIndex = (currentSongIndex + 1) % total;
-    loadSong(currentCategory, currentSongIndex);
-    playAudio();
+// DOM Initialization
+document.addEventListener('DOMContentLoaded', () => {
+  // Bind category buttons dynamically
+  const buttons = document.querySelectorAll('button, .cat-btn, [class*="cat"]');
+  buttons.forEach(btn => {
+    btn.addEventListener('click', (e) => {
+      const text = e.target.textContent.trim();
+      if (text.includes("All") || text.includes("2026") || text.includes("90s") || text.includes("3D")) {
+        switchCategory(text, e.target);
+      }
+    });
   });
-}
 
-const prevBtn = document.getElementById('prev-btn');
-if (prevBtn) {
-  prevBtn.addEventListener('click', () => {
-    const total = playlist[currentCategory].length;
-    currentSongIndex = (currentSongIndex - 1 + total) % total;
-    loadSong(currentCategory, currentSongIndex);
-    playAudio();
-  });
-}
-
-audio.addEventListener('ended', () => {
-  const total = playlist[currentCategory].length;
-  currentSongIndex = (currentSongIndex + 1) % total;
-  loadSong(currentCategory, currentSongIndex);
-  playAudio();
-});
-
-audio.addEventListener('timeupdate', (e) => {
-  const { duration, currentTime } = e.target;
-  if (duration) {
-    const progressPercent = (currentTime / duration) * 100;
-    if (progress) progress.style.width = `${progressPercent}%`;
-    const curElem = document.getElementById('current-time');
-    const durElem = document.getElementById('total-duration');
-    if (curElem) curElem.textContent = formatTime(currentTime);
-    if (durElem) durElem.textContent = formatTime(duration);
+  const playBtn = document.getElementById('play-btn') || document.querySelector('.play-btn');
+  if (playBtn) {
+    playBtn.addEventListener('click', () => {
+      if (audio.paused) playAudio();
+      else pauseAudio();
+    });
   }
+
+  const nextBtn = document.getElementById('next-btn') || document.querySelector('.next-btn');
+  if (nextBtn) {
+    nextBtn.addEventListener('click', () => {
+      const list = getActiveList();
+      currentSongIndex = (currentSongIndex + 1) % list.length;
+      loadSong(currentCategory, currentSongIndex);
+      playAudio();
+    });
+  }
+
+  const prevBtn = document.getElementById('prev-btn') || document.querySelector('.prev-btn');
+  if (prevBtn) {
+    prevBtn.addEventListener('click', () => {
+      const list = getActiveList();
+      currentSongIndex = (currentSongIndex - 1 + list.length) % list.length;
+      loadSong(currentCategory, currentSongIndex);
+      playAudio();
+    });
+  }
+
+  // Initial Load
+  loadSong(currentCategory, currentSongIndex);
 });
 
-function formatTime(secs) {
-  let min = Math.floor(secs / 60);
-  let sec = Math.floor(secs % 60);
-  if (sec < 10) sec = `0${sec}`;
-  return `${min}:${sec}`;
+// Fallback initial execution
+if (document.readyState === 'complete' || document.readyState === 'interactive') {
+  loadSong(currentCategory, currentSongIndex);
 }
-
-if (progressContainer) {
-  progressContainer.addEventListener('click', (e) => {
-    const width = progressContainer.clientWidth;
-    const clickX = e.offsetX;
-    if (audio.duration) {
-      audio.currentTime = (clickX / width) * audio.duration;
-    }
-  });
-}
-
-// Initial Call
-loadSong(currentCategory, currentSongIndex);
