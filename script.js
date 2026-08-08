@@ -54,11 +54,6 @@ const playlist = {
     { title: "Pal Bhar Ke Liye", artist: "Kishore Kumar & Asha Bhosle", file: "Pal_Bhar_Ke_Liye_" },
     { title: "Pal Pal Dil Ke Paas", artist: "Kishore Kumar", file: "Pal_Pal_Dil_Ke_Paas" },
     { title: "Yunhi Tum Mujhse", artist: "Mohd. Rafi & Lata Mangeshkar", file: "Yunhi_Tum_Mujhse" }
-  ],
-  "3D Audio": [
-    { title: "Dil Ka Jo Haal Hai (3D)", artist: "Abhijeet, Shreya Ghoshal", file: "Dil Ka Jo Haal Hai - Abhijeet, Shreya Ghoshal" },
-    { title: "Blue Eyes (3D Remaster)", artist: "Yo Yo Honey Singh", file: "Blue Eyes - Yo Yo Honey Singh" },
-    { title: "Badtameez Dil (3D Experience)", artist: "Benny Dayal", file: "Badtameez Dil - Benny Dayal, Shefali Alvares" }
   ]
 };
 
@@ -79,11 +74,6 @@ let crossfadeStarted = false;
 let audioCtx, analyser, srcNodeA, srcNodeB;
 let canvas, ctx;
 
-// Clean Stereo Panner Variables (No crackling)
-let stereoPanner;
-let is8DActive = false;
-let panAngle = 0;
-
 function initBeatSync() {
   if (audioCtx) return;
   try {
@@ -91,51 +81,18 @@ function initBeatSync() {
     analyser = audioCtx.createAnalyser();
     analyser.fftSize = 64;
 
-    // Ultra-clean Stereo Panner (Distortion Free)
-    if (audioCtx.createStereoPanner) {
-      stereoPanner = audioCtx.createStereoPanner();
-    }
-
     srcNodeA = audioCtx.createMediaElementSource(playerA);
     srcNodeB = audioCtx.createMediaElementSource(playerB);
 
-    // Audio Routing pipeline
-    if (stereoPanner) {
-      srcNodeA.connect(stereoPanner);
-      srcNodeB.connect(stereoPanner);
-      stereoPanner.connect(analyser);
-    } else {
-      srcNodeA.connect(analyser);
-      srcNodeB.connect(analyser);
-    }
-
+    // Direct clean connection to Analyser (No sound processing/distortion)
+    srcNodeA.connect(analyser);
+    srcNodeB.connect(analyser);
     analyser.connect(audioCtx.destination);
 
     startBeatSyncAnimation();
-    start8DEffect();
   } catch (e) {
     console.warn("Audio Context init warning:", e);
   }
-}
-
-function start8DEffect() {
-  function animate8D() {
-    requestAnimationFrame(animate8D);
-
-    if (is8DActive && stereoPanner && !activeAudio.paused) {
-      panAngle += 0.006; // Smooth & natural 8D panning speed
-
-      // Calculate clean pan value (-1 to 1)
-      const panValue = Math.sin(panAngle) * 0.9;
-
-      // Smooth scheduling to eliminate any crackle/clicks
-      stereoPanner.pan.setTargetAtTime(panValue, audioCtx.currentTime, 0.02);
-
-    } else if (stereoPanner && !is8DActive) {
-      stereoPanner.pan.setTargetAtTime(0, audioCtx.currentTime, 0.02);
-    }
-  }
-  animate8D();
 }
 
 function startBeatSyncAnimation() {
@@ -217,7 +174,7 @@ function buildUrl(song, extension = "m4a") {
 
 function getActiveList() {
   if (currentCategory === "All") {
-    return [...playlist["Trending"], ...playlist["90s"], ...playlist["3D Audio"]];
+    return [...playlist["Trending"], ...playlist["90s"]];
   }
   return playlist[currentCategory] || playlist["Trending"];
 }
@@ -427,7 +384,6 @@ document.addEventListener('DOMContentLoaded', () => {
   const catButtons = {
     'btn-2026': 'Trending',
     'btn-90s': '90s',
-    'btn-3d': '3D Audio',
     'btn-all': 'All'
   };
 
@@ -450,28 +406,6 @@ document.addEventListener('DOMContentLoaded', () => {
   if (eqToggleBtn && eqPanel) {
     eqToggleBtn.onclick = () => {
       eqPanel.classList.toggle('hidden');
-    };
-  }
-
-  // 8D Audio Toggle Button Logic
-  const eightDBtn = document.getElementById('eightd-btn');
-  if (eightDBtn) {
-    eightDBtn.onclick = () => {
-      initBeatSync();
-      if (audioCtx && audioCtx.state === 'suspended') {
-        audioCtx.resume();
-      }
-
-      is8DActive = !is8DActive;
-      if (is8DActive) {
-        eightDBtn.textContent = '🎧 8D Audio: ON';
-        eightDBtn.style.background = '#00f2fe';
-        eightDBtn.style.color = '#000';
-      } else {
-        eightDBtn.textContent = '🎧 8D Audio: OFF';
-        eightDBtn.style.background = 'rgba(255, 255, 255, 0.08)';
-        eightDBtn.style.color = '#ccc';
-      }
     };
   }
 
