@@ -74,11 +74,14 @@ let currentCategory = "Trending";
 let currentSongIndex = 0;
 let displayedList = [];
 
-let activeAudio = new Audio();
+// Single Audio Engine Instance
+const activeAudio = new Audio();
 activeAudio.crossOrigin = "anonymous";
-let globalVolume = 1;
 
-let audioCtx, analyser, sourceNode, eqFilters = [], vocalFilterNode;
+let globalVolume = 1;
+let crossfadeTime = 10; // Default 10s crossfade
+
+let audioCtx, analyser, sourceNode, vocalFilterNode, eqFilters = [];
 let isKaraokeOn = false;
 let canvas, ctx;
 
@@ -145,7 +148,76 @@ function updatePlaybackUI(isPlaying) {
   }
 }
 
+/* Audio Graph Architecture */
+function initAudioPipeline() {
+  if (audioCtx) return;
+
+  try {
+    audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    analyser = audioCtx.createAnalyser();
+    analyser.fftSize = 64;
+
+    sourceNode = audioCtx.createMediaElementSource(activeAudio);
+
+    // Vocal Suppressor Notch
+    vocalFilterNode = audioCtx.createBiquadFilter();
+    vocalFilterNode.type = "peaking";
+    vocalFilterNode.frequency.value = 1400;
+    vocalFilterNode.Q.value = 3.0;
+    vocalFilterNode.gain.value = 0;
+
+    // Equalizer
+    const freqs = [60, 250, 1000, 4000, 16000];
+    eqFilters = freqs.map((freq) => {
+      const filter = audioCtx.createBiquadFilter();
+      filter.type = freq <= 250 ? 'lowshelf' : freq >= 4000 ? 'highshelf' : 'peaking';
+      filter.frequency.value = freq;
+      filter.gain.value = 0;
+      return filter;
+    });
+
+    let lastNode = sourceNode;
+    lastNode.connect(vocalFilterNode);
+    lastNode = vocalFilterNode;
+
+    eqFilters.forEach(filter => {
+      lastNode.connect(filter);
+      lastNode = filter;
+    });
+
+    lastNode.connect(analyser);
+    analyser.connect(audioCtx.destination);
+    
+    startDynamicCanvas();
+  } catch (e) {
+    console.log("Audio Context local server restricts audio nodes:", e);
+  }
+}
+
+function toggleKaraokeMode() {
+  initAudioPipeline();
+  if (audioCtx && audioCtx.state === 'suspended') {
+    audioCtx.resume();
+  }
+
+  isKaraokeOn = !isKaraokeOn;
+  const btn = document.getElementById('karaoke-btn');
+
+  if (vocalFilterNode) {
+    vocalFilterNode.gain.value = isKaraokeOn ? -28 : 0;
+  }
+
+  if (btn) {
+    btn.textContent = isKaraokeOn ? "🎤 Karaoke Mode: ON" : "🎤 Karaoke Mode: OFF";
+    btn.style.background = isKaraokeOn ? "#00f2fe" : "rgba(255, 255, 255, 0.08)";
+    btn.style.color = isKaraokeOn ? "#000" : "#ccc";
+  }
+}
+
 function loadAndPlaySong(index) {
+  initAudioPipeline();
+  if (audioCtx && audioCtx.state === 'suspended') audioCtx.resume();
+
   const list = displayedList.length > 0 ? displayedList : getActiveList();
   if (!list[index]) return;
 
@@ -156,39 +228,40 @@ function loadAndPlaySong(index) {
   document.getElementById('category-badge').textContent = `${currentCategory.toUpperCase()} HITS`;
 
   const folderCat = getSongFolderCategory(song);
-  
-  activeAudio.pause();
-  activeAudio = new Audio();
-  activeAudio.crossOrigin = "anonymous";
+  const songUrl = buildUrl(folderCat, song.file, '.m4a');
+
+  if (crossfadeTime > 0 && !activeAudio.paused) {
+    let fadeVol = activeAudio.volume;
+    const fadeInterval = setInterval(() => {
+      if (fadeVol > 0.1) {
+        fadeVol -= 0.1;
+        activeAudio.volume = fadeVol;
+      } else {
+        clearInterval(fadeInterval);
+        startNewTrack(songUrl);
+      }
+    }, (crossfadeTime * 100) );
+  } else {
+    startNewTrack(songUrl);
+  }
+
+  renderPlaylist(displayedList);
+}
+
+function startNewTrack(url) {
+  activeAudio.src = url;
+  activeAudio.volume = globalVolume;
   
   const speedVal = parseFloat(document.getElementById('speed-slider').value);
   activeAudio.playbackRate = speedVal;
 
-  const primaryUrl = buildUrl(folderCat, song.file, '.m4a');
-  activeAudio.src = primaryUrl;
-  activeAudio.volume = globalVolume;
-  
-  setupAudioEvents(activeAudio);
   renderLyrics(sampleLyrics);
-  
-  const playPromise = activeAudio.play();
-  if (playPromise !== undefined) {
-    playPromise.then(() => {
-      updatePlaybackUI(true);
-      initAudioVisualizer(activeAudio);
-    }).catch(() => {
-      const fallbackUrl = buildUrl(folderCat, song.file, '.mp3');
-      activeAudio.src = fallbackUrl;
-      activeAudio.play().then(() => {
-        updatePlaybackUI(true);
-        initAudioVisualizer(activeAudio);
-      }).catch(() => {
-        updatePlaybackUI(false);
-      });
-    });
-  }
 
-  renderPlaylist(displayedList);
+  activeAudio.play().then(() => {
+    updatePlaybackUI(true);
+  }).catch(() => {
+    updatePlaybackUI(false);
+  });
 }
 
 function renderLyrics(lyrics) {
@@ -222,108 +295,31 @@ function syncLyrics(currentTime) {
   }
 }
 
-function setupAudioEvents(audioObj) {
-  audioObj.addEventListener('timeupdate', () => {
-    if (audioObj !== activeAudio) return;
+activeAudio.addEventListener('timeupdate', () => {
+  const progress = document.getElementById('progress');
+  const currentTimeElem = document.getElementById('current-time');
+  const durationElem = document.getElementById('total-duration');
 
-    const progress = document.getElementById('progress');
-    const currentTimeElem = document.getElementById('current-time');
-    const durationElem = document.getElementById('total-duration');
+  if (activeAudio.duration) {
+    const percent = (activeAudio.currentTime / activeAudio.duration) * 100;
+    progress.style.width = `${percent}%`;
+    currentTimeElem.textContent = formatTime(activeAudio.currentTime);
+    durationElem.textContent = formatTime(activeAudio.duration);
+    syncLyrics(activeAudio.currentTime);
+  }
+});
 
-    if (audioObj.duration) {
-      const percent = (audioObj.currentTime / audioObj.duration) * 100;
-      progress.style.width = `${percent}%`;
-      currentTimeElem.textContent = formatTime(audioObj.currentTime);
-      durationElem.textContent = formatTime(audioObj.duration);
-      syncLyrics(audioObj.currentTime);
-    }
-  });
-
-  audioObj.addEventListener('ended', () => {
-    const list = displayedList.length > 0 ? displayedList : getActiveList();
-    currentSongIndex = (currentSongIndex + 1) % list.length;
-    loadAndPlaySong(currentSongIndex);
-  });
-}
+activeAudio.addEventListener('ended', () => {
+  const list = displayedList.length > 0 ? displayedList : getActiveList();
+  currentSongIndex = (currentSongIndex + 1) % list.length;
+  loadAndPlaySong(currentSongIndex);
+});
 
 function formatTime(seconds) {
   if (isNaN(seconds)) return "0:00";
   const mins = Math.floor(seconds / 60);
   const secs = Math.floor(seconds % 60);
   return `${mins}:${secs < 10 ? '0' : ''}${secs}`;
-}
-
-/* Equalizer & Web Audio Graph Node Connections */
-function initAudioVisualizer(audioElement) {
-  try {
-    if (!audioCtx) {
-      audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-      analyser = audioCtx.createAnalyser();
-      analyser.fftSize = 64;
-
-      const freqs = [60, 250, 1000, 4000, 16000];
-      eqFilters = freqs.map((freq) => {
-        const filter = audioCtx.createBiquadFilter();
-        filter.type = freq <= 250 ? 'lowshelf' : freq >= 4000 ? 'highshelf' : 'peaking';
-        filter.frequency.value = freq;
-        filter.gain.value = 0;
-        return filter;
-      });
-
-      vocalFilterNode = audioCtx.createBiquadFilter();
-      vocalFilterNode.type = "notch";
-      vocalFilterNode.frequency.value = 1000;
-      vocalFilterNode.Q.value = 5.0;
-    }
-
-    if (audioCtx.state === 'suspended') audioCtx.resume();
-    if (sourceNode) sourceNode.disconnect();
-    sourceNode = audioCtx.createMediaElementSource(audioElement);
-
-    connectAudioGraph();
-    startDynamicCanvas();
-  } catch (e) {
-    console.log("Audio Context local server restricts audio nodes:", e);
-  }
-}
-
-function connectAudioGraph() {
-  if (!sourceNode) return;
-  sourceNode.disconnect();
-
-  let current = sourceNode;
-
-  if (isKaraokeOn && vocalFilterNode) {
-    current.connect(vocalFilterNode);
-    current = vocalFilterNode;
-  }
-
-  eqFilters.forEach((filter) => {
-    current.connect(filter);
-    current = filter;
-  });
-
-  current.connect(analyser);
-  analyser.connect(audioCtx.destination);
-}
-
-function toggleKaraokeMode() {
-  isKaraokeOn = !isKaraokeOn;
-  const btn = document.getElementById('karaoke-btn');
-  
-  if (btn) {
-    if (isKaraokeOn) {
-      btn.textContent = "🎤 Karaoke Mode: ON";
-      btn.style.background = "#00f2fe";
-      btn.style.color = "#000";
-    } else {
-      btn.textContent = "🎤 Karaoke Mode: OFF";
-      btn.style.background = "rgba(255, 255, 255, 0.08)";
-      btn.style.color = "#ccc";
-    }
-  }
-
-  connectAudioGraph();
 }
 
 function startDynamicCanvas() {
@@ -374,46 +370,47 @@ async function togglePiP() {
     if (document.pictureInPictureElement) {
       await document.exitPictureInPicture();
     } else {
-      const streamCanvas = document.createElement('canvas');
-      streamCanvas.width = 320;
-      streamCanvas.height = 180;
-      const cCtx = streamCanvas.getContext('2d');
+      const pipCanvas = document.createElement('canvas');
+      pipCanvas.width = 400;
+      pipCanvas.height = 225;
+      const pCtx = pipCanvas.getContext('2d');
 
-      function updatePipCanvas() {
-        if (!document.pictureInPictureElement) return;
+      function drawPiP() {
+        if (!document.pictureInPictureElement && video.paused) return;
 
-        cCtx.fillStyle = '#121216';
-        cCtx.fillRect(0, 0, 320, 180);
+        pCtx.fillStyle = '#111218';
+        pCtx.fillRect(0, 0, 400, 225);
 
-        cCtx.fillStyle = '#00f2fe';
-        cCtx.font = 'bold 16px sans-serif';
-        const title = document.getElementById('song-title').textContent || 'Playing Music';
-        cCtx.fillText(title.substring(0, 22), 20, 60);
+        pCtx.fillStyle = '#00f2fe';
+        pCtx.font = 'bold 18px sans-serif';
+        const title = document.getElementById('song-title').textContent || 'Music Player';
+        pCtx.fillText(title.substring(0, 24), 20, 70);
 
-        cCtx.fillStyle = '#888888';
-        cCtx.font = '12px sans-serif';
-        const artist = document.getElementById('artist-name').textContent || '';
-        cCtx.fillText(artist.substring(0, 25), 20, 85);
+        pCtx.fillStyle = '#aaaaaa';
+        pCtx.font = '14px sans-serif';
+        const artist = document.getElementById('artist-name').textContent || 'Playing';
+        pCtx.fillText(artist.substring(0, 28), 20, 100);
 
-        cCtx.fillStyle = '#00f2fe';
-        cCtx.fillRect(20, 120, 280, 4);
+        pCtx.fillStyle = 'rgba(255,255,255,0.2)';
+        pCtx.fillRect(20, 160, 360, 6);
 
         if (activeAudio.duration) {
-          const pWidth = (activeAudio.currentTime / activeAudio.duration) * 280;
-          cCtx.fillStyle = '#ffffff';
-          cCtx.fillRect(20, 120, pWidth, 4);
+          const progress = (activeAudio.currentTime / activeAudio.duration) * 360;
+          pCtx.fillStyle = '#00f2fe';
+          pCtx.fillRect(20, 160, progress, 6);
         }
 
-        requestAnimationFrame(updatePipCanvas);
+        requestAnimationFrame(drawPiP);
       }
 
-      video.srcObject = streamCanvas.captureStream(30);
+      const stream = pipCanvas.captureStream(30);
+      video.srcObject = stream;
       await video.play();
       await video.requestPictureInPicture();
-      updatePipCanvas();
+      drawPiP();
     }
   } catch (err) {
-    console.log("PiP Error:", err);
+    console.error(err);
   }
 }
 
@@ -425,12 +422,10 @@ document.addEventListener('DOMContentLoaded', () => {
     searchInput.addEventListener('input', (e) => {
       const query = e.target.value.toLowerCase().trim();
       const currentList = getActiveList();
-      
       const filtered = currentList.filter(song => 
         song.title.toLowerCase().includes(query) || 
         song.artist.toLowerCase().includes(query)
       );
-      
       renderPlaylist(filtered);
     });
   }
@@ -457,6 +452,7 @@ document.addEventListener('DOMContentLoaded', () => {
   });
 
   document.getElementById('play-btn').onclick = () => {
+    initAudioPipeline();
     if (activeAudio.paused) {
       activeAudio.play();
       if (audioCtx && audioCtx.state === 'suspended') audioCtx.resume();
@@ -493,6 +489,14 @@ document.addEventListener('DOMContentLoaded', () => {
       const val = parseFloat(e.target.value);
       document.getElementById('speed-val').textContent = `${val.toFixed(1)}x`;
       activeAudio.playbackRate = val;
+    };
+  }
+
+  const crossSlider = document.getElementById('crossfade-slider');
+  if (crossSlider) {
+    crossSlider.oninput = (e) => {
+      crossfadeTime = parseInt(e.target.value);
+      document.getElementById('crossfade-val').textContent = `${crossfadeTime}s`;
     };
   }
 
