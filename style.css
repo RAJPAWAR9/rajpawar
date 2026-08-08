@@ -298,30 +298,52 @@ body {
   accent-color: #00f2fe;
 }
 
-.lyrics-box {
+/* Designer Box Styling */
+.designer-box {
   height: 50px;
-  overflow: hidden;
-  text-align: center;
+  display: flex;
+  justify-content: center;
+  align-items: center;
   margin-bottom: 15px;
-  background: rgba(0, 0, 0, 0.2);
-  border-radius: 10px;
-  padding: 10px;
+  background: rgba(0, 0, 0, 0.35);
+  border: 1px solid rgba(0, 242, 254, 0.25);
+  border-radius: 12px;
+  box-shadow: inset 0 0 10px rgba(0, 0, 0, 0.5);
 }
 
-.lyrics-scroll {
-  transition: transform 0.3s ease;
+/* Glowing Dynamic Text Effect */
+.glowing-text {
+  font-size: 15px;
+  font-weight: 700;
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
+  color: #ffffff;
+  animation: colorGlow 3s infinite alternate ease-in-out;
 }
 
-.lyric-line {
-  font-size: 13px;
-  color: #666;
-  height: 26px;
-  line-height: 26px;
-}
-
-.lyric-line.active {
-  color: #00f2fe;
-  font-weight: bold;
+/* Multi-Color Glowing Animation */
+@keyframes colorGlow {
+  0% {
+    color: #00f2fe;
+    text-shadow: 
+      0 0 5px #00f2fe,
+      0 0 12px #00f2fe,
+      0 0 25px #00f2fe;
+  }
+  50% {
+    color: #ff007f;
+    text-shadow: 
+      0 0 5px #ff007f,
+      0 0 12px #ff007f,
+      0 0 25px #ff007f;
+  }
+  100% {
+    color: #7928ca;
+    text-shadow: 
+      0 0 5px #7928ca,
+      0 0 12px #7928ca,
+      0 0 25px #7928ca;
+  }
 }
 
 .playlist-container {
