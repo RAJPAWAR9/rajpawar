@@ -79,6 +79,11 @@ let crossfadeStarted = false;
 let audioCtx, analyser, srcNodeA, srcNodeB;
 let canvas, ctx;
 
+// 8D Audio Variables
+let pannerNode;
+let is8DActive = false;
+let panAngle = 0;
+
 function initBeatSync() {
   if (audioCtx) return;
   try {
@@ -86,18 +91,37 @@ function initBeatSync() {
     analyser = audioCtx.createAnalyser();
     analyser.fftSize = 64;
 
+    // Stereo Panner Node for 8D Sound Effect
+    pannerNode = audioCtx.createStereoPanner();
+
     srcNodeA = audioCtx.createMediaElementSource(playerA);
     srcNodeB = audioCtx.createMediaElementSource(playerB);
 
-    srcNodeA.connect(analyser);
-    srcNodeB.connect(analyser);
+    srcNodeA.connect(pannerNode);
+    srcNodeB.connect(pannerNode);
 
+    pannerNode.connect(analyser);
     analyser.connect(audioCtx.destination);
     
     startBeatSyncAnimation();
+    start8DEffect();
   } catch (e) {
     console.warn("Audio Context init warning (CORS or Autoplay):", e);
   }
+}
+
+function start8DEffect() {
+  function animate8D() {
+    requestAnimationFrame(animate8D);
+
+    if (is8DActive && pannerNode && !activeAudio.paused) {
+      panAngle += 0.015;
+      pannerNode.pan.value = Math.sin(panAngle);
+    } else if (pannerNode && !is8DActive) {
+      pannerNode.pan.value = 0;
+    }
+  }
+  animate8D();
 }
 
 function startBeatSyncAnimation() {
@@ -170,7 +194,6 @@ function startBeatSyncAnimation() {
   renderFrame();
 }
 
-// Build URL with Format Fallback (.m4a & .mp3)
 function buildUrl(song, extension = "m4a") {
   const is90s = playlist["90s"].some(s => s.file === song.file);
   const basePath = is90s ? BASE_FOLDER_90S : BASE_FOLDER_2026;
@@ -224,7 +247,6 @@ function playAudioWithFallback(audioElement, song) {
     playPromise.then(() => {
       updatePlaybackUI(true);
     }).catch(() => {
-      // If .m4a fails, fallback to .mp3 automatically
       const mp3Url = buildUrl(song, "mp3");
       audioElement.src = mp3Url;
       audioElement.play().then(() => {
@@ -409,6 +431,36 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   });
 
+  const eqToggleBtn = document.getElementById('eq-toggle-btn');
+  const eqPanel = document.getElementById('eq-panel');
+  if (eqToggleBtn && eqPanel) {
+    eqToggleBtn.onclick = () => {
+      eqPanel.classList.toggle('hidden');
+    };
+  }
+
+  // 8D Audio Toggle Button Logic
+  const eightDBtn = document.getElementById('eightd-btn');
+  if (eightDBtn) {
+    eightDBtn.onclick = () => {
+      initBeatSync();
+      if (audioCtx && audioCtx.state === 'suspended') {
+        audioCtx.resume();
+      }
+
+      is8DActive = !is8DActive;
+      if (is8DActive) {
+        eightDBtn.textContent = '🎧 8D Audio: ON';
+        eightDBtn.style.background = '#00f2fe';
+        eightDBtn.style.color = '#000';
+      } else {
+        eightDBtn.textContent = '🎧 8D Audio: OFF';
+        eightDBtn.style.background = 'rgba(255, 255, 255, 0.08)';
+        eightDBtn.style.color = '#ccc';
+      }
+    };
+  }
+
   document.getElementById('play-btn').onclick = () => {
     initBeatSync();
     if (audioCtx && audioCtx.state === 'suspended') {
@@ -459,6 +511,17 @@ document.addEventListener('DOMContentLoaded', () => {
     volSlider.oninput = (e) => {
       globalVolume = parseFloat(e.target.value);
       activeAudio.volume = globalVolume;
+    };
+  }
+
+  const speedSlider = document.getElementById('speed-slider');
+  if (speedSlider) {
+    speedSlider.oninput = (e) => {
+      const val = parseFloat(e.target.value);
+      activeAudio.playbackRate = val;
+      nextAudio.playbackRate = val;
+      const speedVal = document.getElementById('speed-val');
+      if (speedVal) speedVal.textContent = `${val.toFixed(1)}x`;
     };
   }
 
