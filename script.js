@@ -66,11 +66,8 @@ let currentCategory = "Trending";
 let currentSongIndex = 0;
 let displayedList = [];
 
-// DUAL AUDIO ENGINE FOR MIXING & FAST SWITCH
 let playerA = new Audio();
 let playerB = new Audio();
-playerA.crossOrigin = "anonymous";
-playerB.crossOrigin = "anonymous";
 
 let activeAudio = playerA;
 let nextAudio = playerB;
@@ -79,7 +76,6 @@ let globalVolume = 1;
 let crossfadeTime = 10;
 let crossfadeStarted = false;
 
-// WEB AUDIO API FOR GLOW BEAT SYNC & CANVAS
 let audioCtx, analyser, srcNodeA, srcNodeB;
 let canvas, ctx;
 
@@ -100,7 +96,7 @@ function initBeatSync() {
     
     startBeatSyncAnimation();
   } catch (e) {
-    console.log("Audio Context initialization error / CORS:", e);
+    console.warn("Audio Context init warning (CORS or Autoplay):", e);
   }
 }
 
@@ -113,33 +109,32 @@ function startBeatSyncAnimation() {
   }
 
   const albumArt = document.getElementById('album-art-box');
-  const bufferLength = analyser.frequencyBinCount;
+  const bufferLength = analyser ? analyser.frequencyBinCount : 0;
   const dataArray = new Uint8Array(bufferLength);
 
   function renderFrame() {
     requestAnimationFrame(renderFrame);
 
-    analyser.getByteFrequencyData(dataArray);
-
-    // Calculate Bass Energy (Low Frequencies)
-    let bassSum = 0;
-    const bassBins = Math.floor(bufferLength * 0.3);
-    for (let i = 0; i < bassBins; i++) {
-      bassSum += dataArray[i];
+    if (analyser) {
+      analyser.getByteFrequencyData(dataArray);
     }
-    let bassAvg = bassSum / bassBins; // 0 - 255
 
-    // Overall Average Energy
+    let bassSum = 0;
+    const bassBins = Math.floor(bufferLength * 0.3) || 1;
+    for (let i = 0; i < bassBins; i++) {
+      bassSum += dataArray[i] || 0;
+    }
+    let bassAvg = bassSum / bassBins;
+
     let totalSum = 0;
     for (let i = 0; i < bufferLength; i++) {
-      totalSum += dataArray[i];
+      totalSum += dataArray[i] || 0;
     }
-    let totalAvg = totalSum / bufferLength;
+    let totalAvg = totalSum / (bufferLength || 1);
 
-    // 1. DYNAMIC GLOW & PULSE ON ALBUM ART / PLAYER
     if (albumArt && !activeAudio.paused) {
-      let glowRadius = 15 + (bassAvg / 255) * 45; // Glow intensity
-      let scaleFactor = 1 + (bassAvg / 255) * 0.06; // Pulse effect on beat
+      let glowRadius = 15 + (bassAvg / 255) * 45;
+      let scaleFactor = 1 + (bassAvg / 255) * 0.06;
       let hue = (Date.now() / 20) % 360;
 
       albumArt.style.boxShadow = `0 0 ${glowRadius}px hsla(${hue}, 100%, 50%, 0.8), 0 0 ${glowRadius * 1.8}px hsla(${hue + 40}, 100%, 50%, 0.4)`;
@@ -149,7 +144,6 @@ function startBeatSyncAnimation() {
       albumArt.style.transform = 'scale(1)';
     }
 
-    // 2. AMBIENT BACKGROUND BEAT CANVAS
     if (ctx && canvas) {
       ctx.clearRect(0, 0, canvas.width, canvas.height);
 
@@ -176,12 +170,11 @@ function startBeatSyncAnimation() {
   renderFrame();
 }
 
-// Dynamic Safe Path Generator (Fixed 90s Bug)
-function buildUrl(song) {
+// Build URL with Format Fallback (.m4a & .mp3)
+function buildUrl(song, extension = "m4a") {
   const is90s = playlist["90s"].some(s => s.file === song.file);
   const basePath = is90s ? BASE_FOLDER_90S : BASE_FOLDER_2026;
-  
-  const fullPath = `${basePath}/${song.file}.m4a`;
+  const fullPath = `${basePath}/${song.file}.${extension}`;
   return fullPath.split('/').map(part => encodeURIComponent(part)).join('/');
 }
 
@@ -214,11 +207,34 @@ function renderPlaylist(songsToRender = null) {
 
     item.onclick = () => {
       currentSongIndex = index;
-      loadAndPlaySong(currentSongIndex, true); // Instant Manual Switch
+      loadAndPlaySong(currentSongIndex, true);
     };
 
     playlistView.appendChild(item);
   });
+}
+
+function playAudioWithFallback(audioElement, song) {
+  const m4aUrl = buildUrl(song, "m4a");
+  audioElement.src = m4aUrl;
+
+  const playPromise = audioElement.play();
+
+  if (playPromise !== undefined) {
+    playPromise.then(() => {
+      updatePlaybackUI(true);
+    }).catch(() => {
+      // If .m4a fails, fallback to .mp3 automatically
+      const mp3Url = buildUrl(song, "mp3");
+      audioElement.src = mp3Url;
+      audioElement.play().then(() => {
+        updatePlaybackUI(true);
+      }).catch((err) => {
+        console.error("Failed to play song with both .m4a and .mp3 formats:", err);
+        updatePlaybackUI(false);
+      });
+    });
+  }
 }
 
 function loadAndPlaySong(index, isManualTrigger = true) {
@@ -235,8 +251,6 @@ function loadAndPlaySong(index, isManualTrigger = true) {
   document.getElementById('artist-name').textContent = song.artist;
   document.getElementById('category-badge').textContent = `${currentCategory.toUpperCase()} HITS`;
 
-  const songUrl = buildUrl(song);
-
   if (isManualTrigger) {
     crossfadeStarted = false;
     
@@ -248,14 +262,10 @@ function loadAndPlaySong(index, isManualTrigger = true) {
     activeAudio = playerA;
     nextAudio = playerB;
 
-    activeAudio.src = songUrl;
     activeAudio.volume = globalVolume;
     activeAudio.playbackRate = parseFloat(document.getElementById('speed-slider')?.value || 1);
 
-    activeAudio.play().then(() => updatePlaybackUI(true)).catch((err) => {
-      console.log("Audio Play Failed:", err);
-      updatePlaybackUI(false);
-    });
+    playAudioWithFallback(activeAudio, song);
   } else {
     activeAudio = nextAudio;
     nextAudio = (activeAudio === playerA) ? playerB : playerA;
@@ -278,12 +288,10 @@ function handleCrossfadeCheck() {
     currentSongIndex = nextIndex;
 
     const nextSong = list[nextIndex];
-    const nextUrl = buildUrl(nextSong);
 
-    nextAudio.src = nextUrl;
     nextAudio.volume = 0;
     nextAudio.playbackRate = parseFloat(document.getElementById('speed-slider')?.value || 1);
-    nextAudio.play();
+    playAudioWithFallback(nextAudio, nextSong);
 
     const intervalTime = 100;
     const steps = (crossfadeTime * 1000) / intervalTime;
@@ -309,7 +317,7 @@ function handleCrossfadeCheck() {
         clearInterval(fadeTimer);
         activeAudio.pause();
         activeAudio.currentTime = 0;
- loadAndPlaySong(currentSongIndex, false);
+        loadAndPlaySong(currentSongIndex, false);
       }
     }, intervalTime);
   }
