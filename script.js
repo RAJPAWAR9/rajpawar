@@ -79,8 +79,9 @@ let crossfadeStarted = false;
 let audioCtx, analyser, srcNodeA, srcNodeB;
 let canvas, ctx;
 
-// 8D Audio Variables
+// Upgraded 3D / 8D Audio Variables
 let pannerNode;
+let filterNode;
 let is8DActive = false;
 let panAngle = 0;
 
@@ -91,18 +92,27 @@ function initBeatSync() {
     analyser = audioCtx.createAnalyser();
     analyser.fftSize = 64;
 
-    // Stereo Panner Node for 8D Sound Effect
-    pannerNode = audioCtx.createStereoPanner();
+    // 1. HRTF 3D Panner (Human Ear Acoustic Simulation)
+    pannerNode = audioCtx.createPanner();
+    pannerNode.panningModel = 'HRTF';
+    pannerNode.distanceModel = 'inverse';
+
+    // 2. Lowpass Filter (Dynamic Back/Front Surround Effect)
+    filterNode = audioCtx.createBiquadFilter();
+    filterNode.type = 'lowpass';
+    filterNode.frequency.value = 20000;
 
     srcNodeA = audioCtx.createMediaElementSource(playerA);
     srcNodeB = audioCtx.createMediaElementSource(playerB);
 
-    srcNodeA.connect(pannerNode);
-    srcNodeB.connect(pannerNode);
+    // Audio Connections Routing
+    srcNodeA.connect(filterNode);
+    srcNodeB.connect(filterNode);
+    filterNode.connect(pannerNode);
 
     pannerNode.connect(analyser);
     analyser.connect(audioCtx.destination);
-    
+
     startBeatSyncAnimation();
     start8DEffect();
   } catch (e) {
@@ -115,10 +125,39 @@ function start8DEffect() {
     requestAnimationFrame(animate8D);
 
     if (is8DActive && pannerNode && !activeAudio.paused) {
-      panAngle += 0.015;
-      pannerNode.pan.value = Math.sin(panAngle);
+      panAngle += 0.012; // Smooth rotation speed
+
+      // 360-degree circle coordinate calculations
+      const radius = 3;
+      const x = Math.sin(panAngle) * radius;
+      const z = Math.cos(panAngle) * radius;
+
+      // Position update
+      if (pannerNode.positionX) {
+        pannerNode.positionX.value = x;
+        pannerNode.positionY.value = 0;
+        pannerNode.positionZ.value = z;
+      } else {
+        pannerNode.setPosition(x, 0, z);
+      }
+
+      // Dynamic muffling filter when sound moves behind listener (Z < 0)
+      if (z < 0) {
+        filterNode.frequency.value = 12000 + (z * 2000);
+      } else {
+        filterNode.frequency.value = 20000;
+      }
+
     } else if (pannerNode && !is8DActive) {
-      pannerNode.pan.value = 0;
+      // Reset position back to front center
+      if (pannerNode.positionX) {
+        pannerNode.positionX.value = 0;
+        pannerNode.positionY.value = 0;
+        pannerNode.positionZ.value = 1;
+      } else {
+        pannerNode.setPosition(0, 0, 1);
+      }
+      if (filterNode) filterNode.frequency.value = 20000;
     }
   }
   animate8D();
@@ -212,10 +251,10 @@ function renderPlaylist(songsToRender = null) {
   const playlistView = document.getElementById('playlist-view');
   const trackCount = document.getElementById('track-count');
   displayedList = songsToRender || getActiveList();
-  
+
   if (trackCount) trackCount.textContent = `${displayedList.length} Songs`;
   if (!playlistView) return;
-  
+
   playlistView.innerHTML = '';
 
   displayedList.forEach((song, index) => {
@@ -275,7 +314,7 @@ function loadAndPlaySong(index, isManualTrigger = true) {
 
   if (isManualTrigger) {
     crossfadeStarted = false;
-    
+
     playerA.pause();
     playerB.pause();
     playerA.currentTime = 0;
@@ -352,7 +391,7 @@ function attachAudioEvents(audioPlayer) {
         const percent = (activeAudio.currentTime / activeAudio.duration) * 100;
         const progress = document.getElementById('progress');
         if (progress) progress.style.width = `${percent}%`;
-        
+
         document.getElementById('current-time').textContent = formatTime(activeAudio.currentTime);
         document.getElementById('total-duration').textContent = formatTime(activeAudio.duration);
       }
