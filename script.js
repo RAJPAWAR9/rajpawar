@@ -29,7 +29,6 @@ const playlist = {
   ]
 };
 
-// Synced Karaoke Lyrics DB
 const sampleLyrics = [
   { time: 0, text: "🎵 Audio Playing (Karaoke Ready)..." },
   { time: 10, text: "Feel the beats & rhythm" },
@@ -41,12 +40,11 @@ const sampleLyrics = [
 
 let currentCategory = "Trending";
 let currentSongIndex = 0;
-let crossfadeDuration = 10;
-let isCrossfading = false;
 let displayedList = [];
 
 let activeAudio = new Audio();
-let nextAudio = new Audio();
+activeAudio.crossOrigin = "anonymous";
+
 let globalVolume = 1;
 
 let audioCtx;
@@ -93,7 +91,6 @@ function renderPlaylist(songsToRender = null) {
 
     item.onclick = () => {
       currentSongIndex = index;
-      isCrossfading = false;
       loadAndPlaySong(currentSongIndex);
     };
 
@@ -136,6 +133,7 @@ function loadAndPlaySong(index) {
   
   activeAudio.pause();
   activeAudio = new Audio();
+  activeAudio.crossOrigin = "anonymous";
   
   const speedVal = parseFloat(document.getElementById('speed-slider').value);
   activeAudio.playbackRate = speedVal;
@@ -232,7 +230,7 @@ function formatTime(seconds) {
   return `${mins}:${secs < 10 ? '0' : ''}${secs}`;
 }
 
-/* Web Audio API Equalizer & Vocal Cut Node */
+/* Equalizer & Web Audio Graph */
 function initAudioVisualizer(audioElement) {
   try {
     if (!audioCtx) {
@@ -240,7 +238,6 @@ function initAudioVisualizer(audioElement) {
       analyser = audioCtx.createAnalyser();
       analyser.fftSize = 64;
 
-      // 5-band EQ filters
       const freqs = [60, 250, 1000, 4000, 16000];
       eqFilters = freqs.map((freq) => {
         const filter = audioCtx.createBiquadFilter();
@@ -250,11 +247,10 @@ function initAudioVisualizer(audioElement) {
         return filter;
       });
 
-      // Karaoke Notch Filter
       vocalFilterNode = audioCtx.createBiquadFilter();
       vocalFilterNode.type = "notch";
       vocalFilterNode.frequency.value = 1000;
-      vocalFilterNode.Q.value = 3.0;
+      vocalFilterNode.Q.value = 5.0;
     }
 
     if (audioCtx.state === 'suspended') audioCtx.resume();
@@ -264,7 +260,9 @@ function initAudioVisualizer(audioElement) {
 
     connectAudioGraph();
     startDynamicCanvas();
-  } catch (e) {}
+  } catch (e) {
+    console.log("Audio Context local server restricts audio nodes:", e);
+  }
 }
 
 function connectAudioGraph() {
@@ -273,13 +271,11 @@ function connectAudioGraph() {
 
   let current = sourceNode;
 
-  // Apply Karaoke Filter if Active
   if (isKaraokeOn && vocalFilterNode) {
     current.connect(vocalFilterNode);
     current = vocalFilterNode;
   }
 
-  // Connect EQ Filter Chain
   eqFilters.forEach((filter) => {
     current.connect(filter);
     current = filter;
@@ -293,20 +289,21 @@ function toggleKaraokeMode() {
   isKaraokeOn = !isKaraokeOn;
   const btn = document.getElementById('karaoke-btn');
   
-  if (isKaraokeOn) {
-    btn.textContent = "🎤 Karaoke Mode: ON";
-    btn.style.background = "#00f2fe";
-    btn.style.color = "#000";
-  } else {
-    btn.textContent = "🎤 Karaoke Mode: OFF";
-    btn.style.background = "rgba(255, 255, 255, 0.05)";
-    btn.style.color = "#ccc";
+  if (btn) {
+    if (isKaraokeOn) {
+      btn.textContent = "🎤 Karaoke Mode: ON";
+      btn.style.background = "#00f2fe";
+      btn.style.color = "#000";
+    } else {
+      btn.textContent = "🎤 Karaoke Mode: OFF";
+      btn.style.background = "rgba(255, 255, 255, 0.05)";
+      btn.style.color = "#ccc";
+    }
   }
 
   connectAudioGraph();
 }
 
-/* Dynamic Ambient Gradient Canvas */
 function startDynamicCanvas() {
   canvas = document.getElementById('ambient-canvas');
   if (!canvas) return;
@@ -347,32 +344,76 @@ function startDynamicCanvas() {
   drawCanvas();
 }
 
-/* Mini Floating Player (Picture in Picture) */
+/* Picture in Picture Floating Mini Player Fix */
 async function togglePiP() {
   const video = document.getElementById('pip-video');
+  if (!video) return;
+
   try {
     if (document.pictureInPictureElement) {
       await document.exitPictureInPicture();
     } else {
       const streamCanvas = document.createElement('canvas');
-      streamCanvas.width = 300;
-      streamCanvas.height = 150;
+      streamCanvas.width = 320;
+      streamCanvas.height = 180;
       const cCtx = streamCanvas.getContext('2d');
-      cCtx.fillStyle = '#121216';
-      cCtx.fillRect(0,0,300,150);
-      cCtx.fillStyle = '#00f2fe';
-      cCtx.font = '16px sans-serif';
-      cCtx.fillText('🎵 Playing Music', 20, 80);
 
-      video.srcObject = streamCanvas.captureStream();
+      function updatePipCanvas() {
+        if (!document.pictureInPictureElement) return;
+
+        cCtx.fillStyle = '#121216';
+        cCtx.fillRect(0, 0, 320, 180);
+
+        cCtx.fillStyle = '#00f2fe';
+        cCtx.font = 'bold 16px sans-serif';
+        const title = document.getElementById('song-title').textContent || 'Playing Music';
+        cCtx.fillText(title.substring(0, 22), 20, 60);
+
+        cCtx.fillStyle = '#888888';
+        cCtx.font = '12px sans-serif';
+        const artist = document.getElementById('artist-name').textContent || '';
+        cCtx.fillText(artist.substring(0, 25), 20, 85);
+
+        cCtx.fillStyle = '#00f2fe';
+        cCtx.fillRect(20, 120, 280, 4);
+
+        if (activeAudio.duration) {
+          const pWidth = (activeAudio.currentTime / activeAudio.duration) * 280;
+          cCtx.fillStyle = '#ffffff';
+          cCtx.fillRect(20, 120, pWidth, 4);
+        }
+
+        requestAnimationFrame(updatePipCanvas);
+      }
+
+      video.srcObject = streamCanvas.captureStream(30);
       await video.play();
       await video.requestPictureInPicture();
+      updatePipCanvas();
     }
-  } catch (err) {}
+  } catch (err) {
+    console.log("PiP Error:", err);
+  }
 }
 
 document.addEventListener('DOMContentLoaded', () => {
   displayedList = getActiveList();
+
+  /* Search Filter Functionality Fix */
+  const searchInput = document.getElementById('search-input');
+  if (searchInput) {
+    searchInput.addEventListener('input', (e) => {
+      const query = e.target.value.toLowerCase().trim();
+      const currentList = getActiveList();
+      
+      const filtered = currentList.filter(song => 
+        song.title.toLowerCase().includes(query) || 
+        song.artist.toLowerCase().includes(query)
+      );
+      
+      renderPlaylist(filtered);
+    });
+  }
 
   const catButtons = {
     'btn-2026': 'Trending',
@@ -426,20 +467,24 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   };
 
-  // Speed Slider
   const speedSlider = document.getElementById('speed-slider');
-  speedSlider.oninput = (e) => {
-    const val = parseFloat(e.target.value);
-    document.getElementById('speed-val').textContent = `${val.toFixed(1)}x`;
-    activeAudio.playbackRate = val;
-  };
+  if (speedSlider) {
+    speedSlider.oninput = (e) => {
+      const val = parseFloat(e.target.value);
+      document.getElementById('speed-val').textContent = `${val.toFixed(1)}x`;
+      activeAudio.playbackRate = val;
+    };
+  }
 
-  // Equalizer & Karaoke Buttons
-  document.getElementById('karaoke-btn').onclick = toggleKaraokeMode;
+  const karaokeBtn = document.getElementById('karaoke-btn');
+  if (karaokeBtn) karaokeBtn.onclick = toggleKaraokeMode;
 
-  document.getElementById('eq-toggle-btn').onclick = () => {
-    document.getElementById('eq-panel').classList.toggle('hidden');
-  };
+  const eqToggleBtn = document.getElementById('eq-toggle-btn');
+  if (eqToggleBtn) {
+    eqToggleBtn.onclick = () => {
+      document.getElementById('eq-panel').classList.toggle('hidden');
+    };
+  }
 
   document.querySelectorAll('.eq-band-slider').forEach(slider => {
     slider.oninput = (e) => {
@@ -456,15 +501,19 @@ document.addEventListener('DOMContentLoaded', () => {
     vocal: [-3, 0, 6, 4, 1]
   };
 
-  document.getElementById('eq-presets').onchange = (e) => {
-    const vals = presets[e.target.value] || presets.flat;
-    document.querySelectorAll('.eq-band-slider').forEach((slider, idx) => {
-      slider.value = vals[idx];
-      if (eqFilters[idx]) eqFilters[idx].gain.value = vals[idx];
-    });
-  };
+  const eqPresets = document.getElementById('eq-presets');
+  if (eqPresets) {
+    eqPresets.onchange = (e) => {
+      const vals = presets[e.target.value] || presets.flat;
+      document.querySelectorAll('.eq-band-slider').forEach((slider, idx) => {
+        slider.value = vals[idx];
+        if (eqFilters[idx]) eqFilters[idx].gain.value = vals[idx];
+      });
+    };
+  }
 
-  document.getElementById('pip-btn').onclick = togglePiP;
+  const pipBtn = document.getElementById('pip-btn');
+  if (pipBtn) pipBtn.onclick = togglePiP;
 
   const volSlider = document.getElementById('volume-slider');
   if (volSlider) {
