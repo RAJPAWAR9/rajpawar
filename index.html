@@ -11,13 +11,28 @@
 </head>
 <body data-theme="dynamic">
 
-  <!-- Dynamic Theme Background Overlay & Canvas -->
+  <!-- Password Security Lock Overlay -->
+  <div id="lock-screen" class="lock-overlay">
+    <div class="lock-card glass-panel">
+      <div class="brand-logo" style="margin: 0 auto 16px auto;"></div>
+      <h2>BOOSTER V0.9</h2>
+      <p style="color: var(--text-secondary); font-size: 13px; margin-top: 4px;">Dezained by raj pawar</p>
+      
+      <div class="lock-input-group" style="margin-top: 24px;">
+        <input type="password" id="access-pass" placeholder="Enter Security Password">
+        <button id="unlock-btn">UNLOCK</button>
+      </div>
+      <p id="lock-error" style="color: #ff0055; font-size: 12px; margin-top: 10px; display: none;">Invalid Password! Try again.</p>
+    </div>
+  </div>
+
+  <!-- Background Layer -->
   <div id="ambient-glow" class="ambient-glow"></div>
   <canvas id="visualizer-canvas"></canvas>
 
   <div class="app-shell">
     
-    <!-- Sidebar Navigation -->
+    <!-- Sidebar -->
     <aside class="sidebar glass-panel">
       <div class="brand">
         <div class="brand-logo"></div>
@@ -29,7 +44,7 @@
           <span class="icon">🏠</span> <span>Home</span>
         </button>
         <button class="nav-item" data-target="view-now-playing">
-          <span class="icon">📝</span> <span>Now Playing</span>
+          <span class="icon">📝</span> <span>Now Playing & Queue</span>
         </button>
         <button class="nav-item" data-target="view-pro-audio">
           <span class="icon">🎛️</span> <span>Pro DSP</span>
@@ -37,22 +52,19 @@
       </nav>
 
       <div class="sidebar-footer">
-        <div class="designer-badge">
-          Dezained by raj pawar
-        </div>
+        <div class="designer-badge">Dezained by raj pawar</div>
         <div class="badge-status">
           <span class="dot live"></span> Audio Engine: 96kHz / 24-bit
         </div>
       </div>
     </aside>
 
-    <!-- Main Dynamic Content Engine -->
+    <!-- Content Engine -->
     <main class="content-viewport">
       
-      <!-- Top Bar & Search -->
       <header class="top-header">
         <div class="search-bar-container">
-          <input type="text" id="global-search" placeholder="Search song, artist, mood, or lyrics...">
+          <input type="text" id="global-search" placeholder="Search song, artist, mood...">
         </div>
 
         <div class="category-filters">
@@ -63,7 +75,7 @@
         </div>
       </header>
 
-      <!-- View 1: Home View -->
+      <!-- View 1: Home -->
       <section id="view-home" class="view-panel active">
         <div class="hero-card glass-panel">
           <div class="hero-content">
@@ -79,7 +91,7 @@
         </div>
       </section>
 
-      <!-- View 2: Now Playing & Synced Lyrics View -->
+      <!-- View 2: Queue & History View (Lyrics Section Replaced) -->
       <section id="view-now-playing" class="view-panel">
         <div class="now-playing-layout">
           <div class="art-visual-side">
@@ -90,12 +102,21 @@
             </div>
           </div>
           
-          <div class="lyrics-side glass-panel">
-            <div class="lyrics-header">
-              <h3>Live Sync Lyrics</h3>
+          <!-- Queue & History Manager Panel -->
+          <div class="queue-side glass-panel" style="padding: 24px; border-radius: 24px;">
+            <div class="tab-controls" style="display: flex; gap: 12px; margin-bottom: 20px; border-bottom: 1px solid var(--glass-border); padding-bottom: 12px;">
+              <button class="queue-tab active" id="tab-upnext">Up Next Queue</button>
+              <button class="queue-tab" id="tab-history">Recently Played</button>
             </div>
-            <div id="lyrics-scroll-container" class="lyrics-container">
-              <div class="lyric-line active">Playing audio from BOOSTER V0.9 library</div>
+
+            <!-- Up Next Tab Container -->
+            <div id="upnext-container" class="queue-tab-content">
+              <div id="upnext-list" style="display: flex; flex-direction: column; gap: 10px; max-height: 400px; overflow-y: auto;"></div>
+            </div>
+
+            <!-- History Tab Container -->
+            <div id="history-container" class="queue-tab-content" style="display: none;">
+              <div id="history-list" style="display: flex; flex-direction: column; gap: 10px; max-height: 400px; overflow-y: auto;"></div>
             </div>
           </div>
         </div>
@@ -103,17 +124,12 @@
 
       <!-- View 3: Pro Audio DSP -->
       <section id="view-pro-audio" class="view-panel">
-        <div class="pro-dsp-container glass-panel">
-          <h2>Pro Audio Studio & Controls</h2>
-          <div class="dsp-grid">
-            <div class="dsp-card">
-              <h3>Crossfade Engine</h3>
-              <div class="control-box">
-                <label>Crossfade Duration</label>
-                <input type="range" id="crossfade-slider" min="0" max="15" step="1" value="6">
-                <span id="crossfade-val">6s</span>
-              </div>
-            </div>
+        <div class="pro-dsp-container glass-panel" style="padding: 24px; border-radius: 24px;">
+          <h2>Pro Audio Controls</h2>
+          <div style="margin-top: 16px;">
+            <label>Crossfade Duration</label>
+            <input type="range" id="crossfade-slider" min="0" max="15" step="1" value="6">
+            <span id="crossfade-val">6s</span>
           </div>
         </div>
       </section>
@@ -121,7 +137,7 @@
     </main>
   </div>
 
-  <!-- Master Player Bar -->
+  <!-- Master Player -->
   <footer class="master-player-bar glass-panel">
     <div class="player-left">
       <div id="mini-art" class="mini-art"></div>
