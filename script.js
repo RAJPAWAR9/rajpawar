@@ -70,7 +70,6 @@ let displayedList = [];
 
 let activeAudio = new Audio();
 let nextAudio = new Audio();
-
 let globalVolume = 1;
 
 let audioCtx;
@@ -78,9 +77,9 @@ let analyser;
 let sourceNode;
 let animationFrameId;
 
-function buildUrl(category, fileName, extension) {
+function buildUrl(category, fileName, ext) {
   const base = (category === "90s") ? BASE_FOLDER_90S : BASE_FOLDER_2026;
-  const fullPath = `${base}/${fileName}${extension}`;
+  const fullPath = `${base}/${fileName}${ext}`;
   return fullPath.split('/').map(part => encodeURIComponent(part)).join('/');
 }
 
@@ -107,8 +106,8 @@ function renderPlaylist(songsToRender = null) {
     item.className = `song-item ${isActive ? 'active' : ''}`;
 
     item.innerHTML = `
-      <div style="font-weight: 600; font-size: 13px; color: #fff;">${index + 1}. ${song.title}</div>
-      <div style="font-size: 11px; color: #888; margin-top:2px;">${song.artist}</div>
+      <div class="song-title-text">${index + 1}. ${song.title}</div>
+      <div class="song-artist-text">${song.artist}</div>
     `;
 
     item.onclick = () => {
@@ -140,7 +139,10 @@ function loadAndPlaySong(index) {
   
   activeAudio.pause();
   activeAudio = new Audio();
-  activeAudio.src = buildUrl(folderCat, song.file, '.m4a');
+  
+  // Audio loader with fallback for formats (.m4a / .mp3)
+  const primaryUrl = buildUrl(folderCat, song.file, '.m4a');
+  activeAudio.src = primaryUrl;
   activeAudio.volume = globalVolume;
   
   setupAudioEvents(activeAudio);
@@ -151,7 +153,15 @@ function loadAndPlaySong(index) {
       document.getElementById('play-btn').textContent = '❚❚';
       initAudioVisualizer(activeAudio);
     }).catch(() => {
-      document.getElementById('play-btn').textContent = '▶';
+      // Retry with .mp3 extension if .m4a fails
+      const fallbackUrl = buildUrl(folderCat, song.file, '.mp3');
+      activeAudio.src = fallbackUrl;
+      activeAudio.play().then(() => {
+        document.getElementById('play-btn').textContent = '❚❚';
+        initAudioVisualizer(activeAudio);
+      }).catch(() => {
+        document.getElementById('play-btn').textContent = '▶';
+      });
     });
   }
 
@@ -264,7 +274,7 @@ function startGlowSync() {
 
   const bufferLength = analyser.frequencyBinCount;
   const dataArray = new Uint8Array(bufferLength);
-  const targetElem = document.getElementById('glow-wrapper');
+  const targetElem = document.getElementById('player-wrapper');
 
   function updateGlow() {
     animationFrameId = requestAnimationFrame(updateGlow);
@@ -276,7 +286,7 @@ function startGlowSync() {
     }
     let average = sum / bufferLength;
 
-    let glowRadius = Math.min(35, 10 + average * 0.2);
+    let glowRadius = Math.min(30, 8 + average * 0.18);
     let hue = (Date.now() / 25) % 360;
 
     if (targetElem) {
