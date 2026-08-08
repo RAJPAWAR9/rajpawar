@@ -2,66 +2,70 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
   <title>Music Player</title>
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
 
-  <div class="player-section">
-    <!-- Left Section: Search, Categories & Playlist -->
-    <div class="left-panel">
-      <input type="text" id="search-input" placeholder="🔍 Search songs or artists...">
+  <div class="glow-wrapper" id="glow-wrapper">
+    <div class="player-container">
       
-      <div class="category-tabs">
-        <button class="cat-btn active" id="btn-2026">Trending Hits</button>
-        <button class="cat-btn" id="btn-90s">90s Hits</button>
-        <button class="cat-btn" id="btn-3d">3D Audio</button>
-        <button class="cat-btn" id="btn-all">All Songs</button>
+      <!-- Left Panel: Search & Playlist -->
+      <div class="left-panel">
+        <input type="text" id="search-input" placeholder="🔍 Search songs or artists...">
+        
+        <div class="category-tabs">
+          <button class="cat-btn active" id="btn-2026">Trending Hits</button>
+          <button class="cat-btn" id="btn-90s">90s Hits</button>
+          <button class="cat-btn" id="btn-3d">3D Audio</button>
+          <button class="cat-btn" id="btn-all">All Songs</button>
+        </div>
+
+        <div class="playlist-header">
+          <span>Playlist</span>
+          <span id="track-count">0 Songs</span>
+        </div>
+
+        <div id="playlist-view"></div>
       </div>
 
-      <div style="display: flex; justify-content: space-between; align-items: center; font-size: 12px; color: #aaa; margin-top: 4px;">
-        <span>Playlist</span>
-        <span id="track-count">0 Songs</span>
-      </div>
-
-      <div id="playlist-view"></div>
-    </div>
-
-    <!-- Right Section: Player Controls & Beat Glow Effect -->
-    <div class="right-panel">
-      <div class="song-details">
-        <span id="category-badge" style="font-size: 10px; background: rgba(0, 242, 254, 0.2); color: #00f2fe; padding: 3px 8px; border-radius: 10px; font-weight: 600;">TRENDING HITS</span>
-        <h2 id="song-title" style="margin-top: 10px;">Select a Song</h2>
-        <p id="artist-name">Artist Name</p>
-      </div>
-
-      <div>
-        <div id="progress-container">
-          <div id="progress"></div>
-        </div>
-        <div class="time-stamps">
-          <span id="current-time">0:00</span>
-          <span id="total-duration">0:00</span>
+      <!-- Right Panel: Player Controls -->
+      <div class="right-panel">
+        <div class="song-details">
+          <span id="category-badge">TRENDING HITS</span>
+          <h2 id="song-title">Select a Song</h2>
+          <p id="artist-name">Artist Name</p>
         </div>
 
-        <div class="controls">
-          <button class="control-btn" id="prev-btn">⏮</button>
-          <button class="control-btn" id="play-btn">▶</button>
-          <button class="control-btn" id="next-btn">⏭</button>
-        </div>
+        <div class="player-controls-group">
+          <div id="progress-container">
+            <div id="progress"></div>
+          </div>
+          <div class="time-stamps">
+            <span id="current-time">0:00</span>
+            <span id="total-duration">0:00</span>
+          </div>
 
-        <div class="slider-group">
-          <span>Crossfade</span>
-          <input type="range" id="crossfade-slider" min="0" max="15" value="10">
-          <span id="crossfade-val">10s</span>
-        </div>
+          <div class="controls">
+            <button class="control-btn" id="prev-btn">⏮</button>
+            <button class="control-btn" id="play-btn">▶</button>
+            <button class="control-btn" id="next-btn">⏭</button>
+          </div>
 
-        <div class="slider-group">
-          <span>Volume</span>
-          <input type="range" id="volume-slider" min="0" max="1" step="0.05" value="1">
+          <div class="slider-group">
+            <span>Crossfade</span>
+            <input type="range" id="crossfade-slider" min="0" max="15" value="10">
+            <span id="crossfade-val">10s</span>
+          </div>
+
+          <div class="slider-group">
+            <span>Volume</span>
+            <input type="range" id="volume-slider" min="0" max="1" step="0.05" value="1">
+          </div>
         </div>
       </div>
+
     </div>
   </div>
 
