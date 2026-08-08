@@ -2,7 +2,7 @@ const BASE_FOLDER_2026 = "song/2026 music";
 const BASE_FOLDER_90S = "song/2026 music/90s";
 
 const playlist = {
-  "2026": [
+  "Trending": [
     { title: "Aa Re Pritam Pyaare", artist: "Mamta Sharma, Sajid-Wajid", file: "Aa Re Pritam Pyaare" },
     { title: "Aapka Kya Hoga", artist: "Mika Singh, Sunidhi Chauhan", file: "Aapka Kya Hoga" },
     { title: "Apna Time Aayega", artist: "Ranveer Singh, DIVINE", file: "Apna Time Aayega - Ranveer Singh, DIVINE" },
@@ -66,11 +66,15 @@ const playlist = {
   ]
 };
 
-let currentCategory = "2026";
+let currentCategory = "Trending";
 let currentSongIndex = 0;
-let testedExtensionIndex = 0;
-const possibleFormats = ['.m4a', '.mp3', '.wav'];
-const audio = new Audio();
+let crossfadeDuration = 10;
+let isCrossfading = false;
+let displayedList = [];
+
+let activeAudio = new Audio();
+let nextAudio = new Audio();
+let globalVolume = 1;
 
 function buildUrl(category, fileName, extension) {
   const base = (category === "90s") ? BASE_FOLDER_90S : BASE_FOLDER_2026;
@@ -78,36 +82,24 @@ function buildUrl(category, fileName, extension) {
   return fullPath.split('/').map(part => encodeURIComponent(part)).join('/');
 }
 
-// Extension Fallback
-audio.addEventListener('error', () => {
-  testedExtensionIndex++;
-  const activeList = getActiveList();
-  if (testedExtensionIndex < possibleFormats.length && activeList[currentSongIndex]) {
-    const song = activeList[currentSongIndex];
-    audio.src = buildUrl(currentCategory, song.file, possibleFormats[testedExtensionIndex]);
-    audio.load();
-    audio.play().catch(() => {});
-  }
-});
-
 function getActiveList() {
   if (currentCategory === "All") {
-    return [...playlist["2026"], ...playlist["90s"], ...playlist["3D Audio"]];
+    return [...playlist["Trending"], ...playlist["90s"], ...playlist["3D Audio"]];
   }
-  return playlist[currentCategory] || playlist["2026"];
+  return playlist[currentCategory] || playlist["Trending"];
 }
 
 function renderPlaylist(songsToRender = null) {
   const playlistView = document.getElementById('playlist-view');
   const trackCount = document.getElementById('track-count');
-  const currentList = songsToRender || getActiveList();
+  displayedList = songsToRender || getActiveList();
   
-  if (trackCount) trackCount.textContent = `${currentList.length} Songs`;
+  if (trackCount) trackCount.textContent = `${displayedList.length} Songs`;
   if (!playlistView) return;
   
   playlistView.innerHTML = '';
 
-  currentList.forEach((song, index) => {
+  displayedList.forEach((song, index) => {
     const item = document.createElement('div');
     const isActive = index === currentSongIndex;
     item.className = `song-item ${isActive ? 'active' : ''}`;
@@ -119,46 +111,115 @@ function renderPlaylist(songsToRender = null) {
 
     item.onclick = () => {
       currentSongIndex = index;
-      loadSong(currentSongIndex);
-      playAudio();
+      isCrossfading = false;
+      loadAndPlaySong(currentSongIndex);
     };
 
     playlistView.appendChild(item);
   });
 }
 
-function loadSong(index) {
-  const currentList = getActiveList();
-  if (!currentList[index]) return;
+function getSongFolderCategory(song) {
+  if (playlist["90s"].some(s => s.title === song.title)) return "90s";
+  return "Trending";
+}
 
-  testedExtensionIndex = 0;
-  const song = currentList[index];
+function loadAndPlaySong(index) {
+  const list = displayedList.length > 0 ? displayedList : getActiveList();
+  if (!list[index]) return;
+
+  const song = list[index];
 
   document.getElementById('song-title').textContent = song.title;
   document.getElementById('artist-name').textContent = song.artist;
-  document.getElementById('category-badge').textContent = `${currentCategory.toUpperCase()} VIBES`;
+  document.getElementById('category-badge').textContent = `${currentCategory.toUpperCase()} HITS`;
 
-  let folderCat = currentCategory;
-  if (currentCategory === "All") {
-    folderCat = playlist["90s"].some(s => s.title === song.title) ? "90s" : "2026";
-  }
+  const folderCat = getSongFolderCategory(song);
+  
+  activeAudio.pause();
+  activeAudio = new Audio();
+  activeAudio.src = buildUrl(folderCat, song.file, '.m4a');
+  activeAudio.volume = globalVolume;
+  
+  setupAudioEvents(activeAudio);
+  
+  activeAudio.play().then(() => {
+    document.getElementById('play-btn').textContent = '❚❚';
+  }).catch(e => console.log(e));
 
-  audio.src = buildUrl(folderCat, song.file, possibleFormats[testedExtensionIndex]);
-  audio.load();
-  renderPlaylist();
+  renderPlaylist(displayedList);
 }
 
-function playAudio() {
-  const playBtn = document.getElementById('play-btn');
-  audio.play().then(() => {
-    playBtn.textContent = '❚❚';
-  }).catch(e => console.log("Play trigger issue:", e));
+function triggerCrossfade() {
+  if (isCrossfading) return;
+  isCrossfading = true;
+
+  const list = displayedList.length > 0 ? displayedList : getActiveList();
+  let nextIndex = (currentSongIndex + 1) % list.length;
+  const nextSong = list[nextIndex];
+  if (!nextSong) return;
+
+  const folderCat = getSongFolderCategory(nextSong);
+  nextAudio = new Audio();
+  nextAudio.src = buildUrl(folderCat, nextSong.file, '.m4a');
+  nextAudio.volume = 0;
+
+  nextAudio.play().then(() => {
+    let fadeSteps = 20;
+    let stepTime = (crossfadeDuration * 1000) / fadeSteps;
+    let stepCount = 0;
+
+    let fadeInterval = setInterval(() => {
+      stepCount++;
+      let progress = stepCount / fadeSteps;
+
+      activeAudio.volume = Math.max(0, globalVolume * (1 - progress));
+      nextAudio.volume = Math.min(globalVolume, globalVolume * progress);
+
+      if (stepCount >= fadeSteps) {
+        clearInterval(fadeInterval);
+        activeAudio.pause();
+        activeAudio = nextAudio;
+        currentSongIndex = nextIndex;
+        isCrossfading = false;
+
+        document.getElementById('song-title').textContent = nextSong.title;
+        document.getElementById('artist-name').textContent = nextSong.artist;
+        setupAudioEvents(activeAudio);
+        renderPlaylist(displayedList);
+      }
+    }, stepTime);
+  }).catch(() => { isCrossfading = false; });
 }
 
-function pauseAudio() {
-  const playBtn = document.getElementById('play-btn');
-  audio.pause();
-  playBtn.textContent = '▶';
+function setupAudioEvents(audioObj) {
+  audioObj.addEventListener('timeupdate', () => {
+    if (audioObj !== activeAudio) return;
+
+    const progress = document.getElementById('progress');
+    const currentTimeElem = document.getElementById('current-time');
+    const durationElem = document.getElementById('total-duration');
+
+    if (audioObj.duration) {
+      const percent = (audioObj.currentTime / audioObj.duration) * 100;
+      progress.style.width = `${percent}%`;
+      currentTimeElem.textContent = formatTime(audioObj.currentTime);
+      durationElem.textContent = formatTime(audioObj.duration);
+
+      const timeLeft = audioObj.duration - audioObj.currentTime;
+      if (timeLeft <= crossfadeDuration && crossfadeDuration > 0 && !isCrossfading) {
+        triggerCrossfade();
+      }
+    }
+  });
+
+  audioObj.addEventListener('ended', () => {
+    if (!isCrossfading) {
+      const list = displayedList.length > 0 ? displayedList : getActiveList();
+      currentSongIndex = (currentSongIndex + 1) % list.length;
+      loadAndPlaySong(currentSongIndex);
+    }
+  });
 }
 
 function formatTime(seconds) {
@@ -168,94 +229,93 @@ function formatTime(seconds) {
   return `${mins}:${secs < 10 ? '0' : ''}${secs}`;
 }
 
-// Time update event for progress music line
-audio.addEventListener('timeupdate', () => {
-  const progress = document.getElementById('progress');
-  const currentTimeElem = document.getElementById('current-time');
-  const durationElem = document.getElementById('total-duration');
-
-  if (audio.duration) {
-    const percent = (audio.currentTime / audio.duration) * 100;
-    progress.style.width = `${percent}%`;
-    currentTimeElem.textContent = formatTime(audio.currentTime);
-    durationElem.textContent = formatTime(audio.duration);
-  }
-});
-
-// Auto next song
-audio.addEventListener('ended', () => {
-  const list = getActiveList();
-  currentSongIndex = (currentSongIndex + 1) % list.length;
-  loadSong(currentSongIndex);
-  playAudio();
-});
-
 document.addEventListener('DOMContentLoaded', () => {
-  // Category Switching
-  document.getElementById('btn-2026').onclick = (e) => switchCat('2026', e.target);
-  document.getElementById('btn-90s').onclick = (e) => switchCat('90s', e.target);
-  document.getElementById('btn-3d').onclick = (e) => switchCat('3D Audio', e.target);
-  document.getElementById('btn-all').onclick = (e) => switchCat('All', e.target);
+  displayedList = getActiveList();
 
-  function switchCat(cat, btn) {
-    currentCategory = cat;
-    currentSongIndex = 0;
-    document.querySelectorAll('.cat-btn').forEach(b => b.classList.remove('active'));
-    btn.classList.add('active');
-    loadSong(currentSongIndex);
-  }
+  const btnTrending = document.getElementById('btn-2026');
+  if (btnTrending) btnTrending.textContent = "Trending Hits";
 
-  // Play/Pause Control
+  const catButtons = {
+    'btn-2026': 'Trending',
+    'btn-90s': '90s',
+    'btn-3d': '3D Audio',
+    'btn-all': 'All'
+  };
+
+  Object.keys(catButtons).forEach(id => {
+    const btn = document.getElementById(id);
+    if (btn) {
+      btn.onclick = (e) => {
+        currentCategory = catButtons[id];
+        currentSongIndex = 0;
+        document.querySelectorAll('.cat-btn').forEach(b => b.classList.remove('active'));
+        e.target.classList.add('active');
+        document.getElementById('search-input').value = '';
+        displayedList = getActiveList();
+        loadAndPlaySong(currentSongIndex);
+      };
+    }
+  });
+
   document.getElementById('play-btn').onclick = () => {
-    if (audio.paused) playAudio();
-    else pauseAudio();
-  };
-
-  // Forward/Backward Buttons
-  document.getElementById('next-btn').onclick = () => {
-    const list = getActiveList();
-    currentSongIndex = (currentSongIndex + 1) % list.length;
-    loadSong(currentSongIndex);
-    playAudio();
-  };
-
-  document.getElementById('prev-btn').onclick = () => {
-    const list = getActiveList();
-    currentSongIndex = (currentSongIndex - 1 + list.length) % list.length;
-    loadSong(currentSongIndex);
-    playAudio();
-  };
-
-  // Music Line Click to Seek
-  document.getElementById('progress-container').onclick = (e) => {
-    const rect = e.currentTarget.getBoundingClientRect();
-    const clickX = e.clientX - rect.left;
-    const width = rect.width;
-    if (audio.duration) {
-      audio.currentTime = (clickX / width) * audio.duration;
+    if (activeAudio.paused) {
+      activeAudio.play();
+      document.getElementById('play-btn').textContent = '❚❚';
+    } else {
+      activeAudio.pause();
+      document.getElementById('play-btn').textContent = '▶';
     }
   };
 
-  // Crossfade Slider 0 to 10s
+  document.getElementById('next-btn').onclick = () => {
+    const list = displayedList.length > 0 ? displayedList : getActiveList();
+    currentSongIndex = (currentSongIndex + 1) % list.length;
+    isCrossfading = false;
+    loadAndPlaySong(currentSongIndex);
+  };
+
+  document.getElementById('prev-btn').onclick = () => {
+    const list = displayedList.length > 0 ? displayedList : getActiveList();
+    currentSongIndex = (currentSongIndex - 1 + list.length) % list.length;
+    isCrossfading = false;
+    loadAndPlaySong(currentSongIndex);
+  };
+
+  document.getElementById('progress-container').onclick = (e) => {
+    const rect = e.currentTarget.getBoundingClientRect();
+    const clickX = e.clientX - rect.left;
+    if (activeAudio.duration) {
+      activeAudio.currentTime = (clickX / rect.width) * activeAudio.duration;
+    }
+  };
+
   const crossfadeSlider = document.getElementById('crossfade-slider');
   const crossfadeVal = document.getElementById('crossfade-val');
   crossfadeSlider.oninput = (e) => {
-    crossfadeVal.textContent = `${e.target.value}s`;
+    crossfadeDuration = parseInt(e.target.value);
+    crossfadeVal.textContent = `${crossfadeDuration}s`;
   };
 
-  // Volume Slider
   document.getElementById('volume-slider').oninput = (e) => {
-    audio.volume = e.target.value;
+    globalVolume = parseFloat(e.target.value);
+    activeAudio.volume = globalVolume;
   };
 
-  // Live Search
   document.getElementById('search-input').oninput = (e) => {
-    const query = e.target.value.toLowerCase();
-    const activeList = getActiveList();
-    const filtered = activeList.filter(s => s.title.toLowerCase().includes(query) || s.artist.toLowerCase().includes(query));
-    renderPlaylist(filtered);
+    const query = e.target.value.toLowerCase().trim();
+    const allSongs = [...playlist["Trending"], ...playlist["90s"], ...playlist["3D Audio"]];
+
+    if (query === "") {
+      displayedList = getActiveList();
+    } else {
+      displayedList = allSongs.filter(s => 
+        s.title.toLowerCase().includes(query) || 
+        s.artist.toLowerCase().includes(query)
+      );
+    }
+    currentSongIndex = 0;
+    renderPlaylist(displayedList);
   };
 
-  // Initial setup
-  loadSong(currentSongIndex);
+  loadAndPlaySong(currentSongIndex);
 });
