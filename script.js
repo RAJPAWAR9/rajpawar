@@ -79,9 +79,8 @@ let crossfadeStarted = false;
 let audioCtx, analyser, srcNodeA, srcNodeB;
 let canvas, ctx;
 
-// Upgraded High Quality 8D Audio Variables
-let pannerNode;
-let filterNode;
+// Clean Stereo Panner Variables (No crackling)
+let stereoPanner;
 let is8DActive = false;
 let panAngle = 0;
 
@@ -92,25 +91,24 @@ function initBeatSync() {
     analyser = audioCtx.createAnalyser();
     analyser.fftSize = 64;
 
-    // HRTF Spatial Panner
-    pannerNode = audioCtx.createPanner();
-    pannerNode.panningModel = 'HRTF';
-    pannerNode.distanceModel = 'inverse';
-
-    // Lowpass Filter for audio Routing
-    filterNode = audioCtx.createBiquadFilter();
-    filterNode.type = 'lowpass';
-    filterNode.frequency.value = 20000; // Full High-Resolution frequencies allowed
+    // Ultra-clean Stereo Panner (Distortion Free)
+    if (audioCtx.createStereoPanner) {
+      stereoPanner = audioCtx.createStereoPanner();
+    }
 
     srcNodeA = audioCtx.createMediaElementSource(playerA);
     srcNodeB = audioCtx.createMediaElementSource(playerB);
 
     // Audio Routing pipeline
-    srcNodeA.connect(filterNode);
-    srcNodeB.connect(filterNode);
-    filterNode.connect(pannerNode);
+    if (stereoPanner) {
+      srcNodeA.connect(stereoPanner);
+      srcNodeB.connect(stereoPanner);
+      stereoPanner.connect(analyser);
+    } else {
+      srcNodeA.connect(analyser);
+      srcNodeB.connect(analyser);
+    }
 
-    pannerNode.connect(analyser);
     analyser.connect(audioCtx.destination);
 
     startBeatSyncAnimation();
@@ -124,35 +122,17 @@ function start8DEffect() {
   function animate8D() {
     requestAnimationFrame(animate8D);
 
-    if (is8DActive && pannerNode && !activeAudio.paused) {
-      panAngle += 0.008; // Smooth, slow natural rotation
+    if (is8DActive && stereoPanner && !activeAudio.paused) {
+      panAngle += 0.006; // Smooth & natural 8D panning speed
 
-      // Quality Loss-less smooth 3D Orbit
-      const radius = 2.5;
-      const x = Math.sin(panAngle) * radius;
-      const z = Math.cos(panAngle) * 0.5; // Controlled Z-depth to avoid audio muffling
+      // Calculate clean pan value (-1 to 1)
+      const panValue = Math.sin(panAngle) * 0.9;
 
-      if (pannerNode.positionX) {
-        pannerNode.positionX.value = x;
-        pannerNode.positionY.value = 0;
-        pannerNode.positionZ.value = z;
-      } else {
-        pannerNode.setPosition(x, 0, z);
-      }
+      // Smooth scheduling to eliminate any crackle/clicks
+      stereoPanner.pan.setTargetAtTime(panValue, audioCtx.currentTime, 0.02);
 
-      // Quality maintain karne ke liye frequency hamesha maximum rakhenge
-      if (filterNode) filterNode.frequency.value = 20000;
-
-    } else if (pannerNode && !is8DActive) {
-      // Reset position back to center
-      if (pannerNode.positionX) {
-        pannerNode.positionX.value = 0;
-        pannerNode.positionY.value = 0;
-        pannerNode.positionZ.value = 1;
-      } else {
-        pannerNode.setPosition(0, 0, 1);
-      }
-      if (filterNode) filterNode.frequency.value = 20000;
+    } else if (stereoPanner && !is8DActive) {
+      stereoPanner.pan.setTargetAtTime(0, audioCtx.currentTime, 0.02);
     }
   }
   animate8D();
