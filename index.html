@@ -2,16 +2,16 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Music Player</title>
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
 
-  <div class="glow-wrapper" id="glow-wrapper">
+  <div class="player-wrapper" id="player-wrapper">
     <div class="player-container">
       
-      <!-- Left Panel: Search & Playlist -->
+      <!-- Left Panel -->
       <div class="left-panel">
         <input type="text" id="search-input" placeholder="🔍 Search songs or artists...">
         
@@ -22,15 +22,15 @@
           <button class="cat-btn" id="btn-all">All Songs</button>
         </div>
 
-        <div class="playlist-header">
-          <span>Playlist</span>
+        <div class="playlist-info">
+          <span>PLAYLIST</span>
           <span id="track-count">0 Songs</span>
         </div>
 
         <div id="playlist-view"></div>
       </div>
 
-      <!-- Right Panel: Player Controls -->
+      <!-- Right Panel -->
       <div class="right-panel">
         <div class="song-details">
           <span id="category-badge">TRENDING HITS</span>
@@ -38,10 +38,11 @@
           <p id="artist-name">Artist Name</p>
         </div>
 
-        <div class="player-controls-group">
+        <div class="controls-container">
           <div id="progress-container">
             <div id="progress"></div>
           </div>
+          
           <div class="time-stamps">
             <span id="current-time">0:00</span>
             <span id="total-duration">0:00</span>
