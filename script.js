@@ -1,6 +1,6 @@
 /**
  * BOOSTER V0.9 - Next-Gen Audio OS Engine
- * Integrated Password Protection + Queue, Category Filters & Timeline Seeking
+ * Integrated Password Protection + Working Queue & 12s Auto-Mix Crossfade
  * Dezained by raj pawar
  */
 
@@ -86,9 +86,11 @@ let activeAudio = playerA;
 let nextAudio = playerB;
 
 let globalVolume = 0.8;
+let crossfadeTime = 12; // Default Auto Mix updated to 12s
+let crossfadeStarted = false;
 let audioCtx, analyser, srcNodeA, srcNodeB;
 
-// Password Lock Engine
+// Password Lock System
 function initPasswordLock() {
   const lockBtn = document.getElementById('unlock-btn');
   const passInput = document.getElementById('access-pass');
@@ -197,6 +199,7 @@ function playAudioWithFallback(audioElement, song) {
   }
 }
 
+// Queue & History Dynamic Renderer (FIXED)
 function updateQueueAndHistoryUI() {
   const upnextList = document.getElementById('upnext-list');
   const historyList = document.getElementById('history-list');
@@ -204,17 +207,29 @@ function updateQueueAndHistoryUI() {
 
   if (upnextList) {
     upnextList.innerHTML = '';
-    let queueToShow = customQueue.length > 0 ? customQueue : list.slice(currentSongIndex + 1, currentSongIndex + 6);
     
+    let queueToShow = [];
+    if (customQueue.length > 0) {
+      queueToShow = customQueue;
+    } else {
+      for (let i = 1; i <= 5; i++) {
+        let idx = (currentSongIndex + i) % list.length;
+        if (list[idx]) queueToShow.push(list[idx]);
+      }
+    }
+
     queueToShow.forEach((song, idx) => {
       const item = document.createElement('div');
-      item.style.cssText = "padding:10px 14px; background:rgba(255,255,255,0.03); border-radius:12px; border:1px solid var(--glass-border); display:flex; justify-content:space-between; align-items:center;";
+      item.style.cssText = "padding:10px 14px; background:rgba(255,255,255,0.03); border-radius:12px; border:1px solid var(--glass-border); display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;";
       item.innerHTML = `
         <div>
           <div style="font-size:13px; font-weight:600; color:#fff;">${song.title}</div>
           <div style="font-size:11px; color:var(--text-secondary);">${song.artist}</div>
         </div>
-        <span style="font-size:11px; color:var(--primary-glow);">Next #${idx + 1}</span>
+        <div style="display:flex; align-items:center; gap:8px;">
+          <span style="font-size:11px; color:var(--primary-glow);">#${idx + 1}</span>
+          ${customQueue.length > 0 ? `<button onclick="removeFromQueue(${idx})" style="background:none; border:none; color:#ff0055; cursor:pointer; font-size:14px;">✕</button>` : ''}
+        </div>
       `;
       upnextList.appendChild(item);
     });
@@ -234,26 +249,47 @@ function updateQueueAndHistoryUI() {
   }
 }
 
-function loadAndPlaySong(index, isManualTrigger = true) {
+function removeFromQueue(index) {
+  customQueue.splice(index, 1);
+  updateQueueAndHistoryUI();
+}
+
+function getNextSong() {
+  if (customQueue.length > 0) {
+    return customQueue.shift(); // Play and remove from queue
+  }
+  const list = displayedList.length > 0 ? displayedList : getActiveList();
+  currentSongIndex = (currentSongIndex + 1) % list.length;
+  return list[currentSongIndex];
+}
+
+function loadAndPlaySong(songToPlay = null, isManualTrigger = true) {
   initBeatSync();
   if (audioCtx && audioCtx.state === 'suspended') audioCtx.resume();
 
   const list = displayedList.length > 0 ? displayedList : getActiveList();
-  if (!list[index]) return;
+  let song = songToPlay;
 
-  const song = list[index];
+  if (!song) {
+    song = list[currentSongIndex];
+  }
 
+  if (!song) return;
+
+  // Add to History
   if (!songHistory.some(s => s.file === song.file)) {
     songHistory.unshift(song);
     if (songHistory.length > 10) songHistory.pop();
   }
 
+  // Update UI Elements
   document.getElementById('mini-title').textContent = song.title;
   document.getElementById('mini-artist').textContent = song.artist + " • Dezained by raj pawar";
   if (document.getElementById('np-title')) document.getElementById('np-title').textContent = song.title;
   if (document.getElementById('np-artist')) document.getElementById('np-artist').textContent = song.artist + " • Dezained by raj pawar";
 
   if (isManualTrigger) {
+    crossfadeStarted = false;
     playerA.pause(); playerB.pause();
     playerA.currentTime = 0; playerB.currentTime = 0;
 
@@ -266,6 +302,7 @@ function loadAndPlaySong(index, isManualTrigger = true) {
   renderTrendingGrid();
 }
 
+// 12s Crossfade & Time Sync Handler
 function attachAudioEvents(audioPlayer) {
   audioPlayer.addEventListener('timeupdate', () => {
     if (audioPlayer === activeAudio && activeAudio.duration) {
@@ -275,14 +312,41 @@ function attachAudioEvents(audioPlayer) {
 
       document.getElementById('time-current').textContent = formatTime(activeAudio.currentTime);
       document.getElementById('time-total').textContent = formatTime(activeAudio.duration);
+
+      // Auto-Mix 12s Crossfade Trigger
+      const timeLeft = activeAudio.duration - activeAudio.currentTime;
+      if (timeLeft <= crossfadeTime && !crossfadeStarted && crossfadeTime > 0) {
+        crossfadeStarted = true;
+        const nextSong = getNextSong();
+        if (nextSong) {
+          nextAudio.currentTime = 0;
+          nextAudio.volume = 0;
+          playAudioWithFallback(nextAudio, nextSong);
+
+          let fadeInterval = setInterval(() => {
+            let step = 0.05;
+            if (activeAudio.volume > step) activeAudio.volume -= step;
+            if (nextAudio.volume < globalVolume - step) nextAudio.volume += step;
+
+            if (activeAudio.volume <= step) {
+              clearInterval(fadeInterval);
+              activeAudio.pause();
+              let temp = activeAudio;
+              activeAudio = nextAudio;
+              nextAudio = temp;
+              crossfadeStarted = false;
+              updateQueueAndHistoryUI();
+            }
+          }, 200);
+        }
+      }
     }
   });
 
   audioPlayer.addEventListener('ended', () => {
-    if (audioPlayer === activeAudio) {
-      const list = displayedList.length > 0 ? displayedList : getActiveList();
-      currentSongIndex = (currentSongIndex + 1) % list.length;
-      loadAndPlaySong(currentSongIndex, true);
+    if (audioPlayer === activeAudio && !crossfadeStarted) {
+      const nextSong = getNextSong();
+      loadAndPlaySong(nextSong, true);
     }
   });
 }
@@ -325,11 +389,10 @@ function renderTrendingGrid() {
         e.stopPropagation();
         customQueue.push(song);
         updateQueueAndHistoryUI();
-        alert(`Added "${song.title}" to Up Next Queue!`);
         return;
       }
       currentSongIndex = index;
-      loadAndPlaySong(currentSongIndex, true);
+      loadAndPlaySong(song, true);
     };
 
     grid.appendChild(card);
@@ -341,7 +404,19 @@ document.addEventListener('DOMContentLoaded', () => {
   displayedList = getActiveList();
   renderTrendingGrid();
 
-  // Category Filters Event Listeners (FIXED)
+  // Crossfade Slider Sync (Sets to 12s Default)
+  const crossSlider = document.getElementById('crossfade-slider');
+  const crossVal = document.getElementById('crossfade-val');
+  if (crossSlider) {
+    crossSlider.value = 12;
+    if (crossVal) crossVal.textContent = '12s';
+    crossSlider.oninput = (e) => {
+      crossfadeTime = parseInt(e.target.value);
+      if (crossVal) crossVal.textContent = `${crossfadeTime}s`;
+    };
+  }
+
+  // Category Filters Handler
   const catBtns = [
     { id: 'btn-2026', cat: 'Trending' },
     { id: 'btn-90s', cat: '90s' },
@@ -363,7 +438,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   });
 
-  // Timeline Bar Seek Handler (FIXED)
+  // Seek Timeline
   const progressContainer = document.getElementById('progress-bar-container');
   if (progressContainer) {
     progressContainer.onclick = (e) => {
@@ -371,12 +446,11 @@ document.addEventListener('DOMContentLoaded', () => {
       const rect = progressContainer.getBoundingClientRect();
       const clickX = e.clientX - rect.left;
       const width = rect.width;
-      const newTime = (clickX / width) * activeAudio.duration;
-      activeAudio.currentTime = newTime;
+      activeAudio.currentTime = (clickX / width) * activeAudio.duration;
     };
   }
 
-  // Live Search Filter Handler
+  // Live Search Filter
   const searchInput = document.getElementById('global-search');
   if (searchInput) {
     searchInput.oninput = (e) => {
@@ -389,7 +463,7 @@ document.addEventListener('DOMContentLoaded', () => {
     };
   }
 
-  // Volume Slider Handler
+  // Master Volume
   const volSlider = document.getElementById('master-volume');
   if (volSlider) {
     volSlider.oninput = (e) => {
@@ -434,11 +508,11 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   });
 
-  // Master Play / Next / Prev Controls
+  // Playback Control Buttons
   document.getElementById('master-play-btn').onclick = () => {
     initBeatSync();
     if (audioCtx && audioCtx.state === 'suspended') audioCtx.resume();
-    if (!activeAudio.src) { loadAndPlaySong(0, true); return; }
+    if (!activeAudio.src) { loadAndPlaySong(null, true); return; }
 
     if (activeAudio.paused) {
       activeAudio.play();
@@ -451,14 +525,13 @@ document.addEventListener('DOMContentLoaded', () => {
   };
 
   document.getElementById('next-btn').onclick = () => {
-    const list = displayedList.length > 0 ? displayedList : getActiveList();
-    currentSongIndex = (currentSongIndex + 1) % list.length;
-    loadAndPlaySong(currentSongIndex, true);
+    const nextSong = getNextSong();
+    loadAndPlaySong(nextSong, true);
   };
 
   document.getElementById('prev-btn').onclick = () => {
     const list = displayedList.length > 0 ? displayedList : getActiveList();
     currentSongIndex = (currentSongIndex - 1 + list.length) % list.length;
-    loadAndPlaySong(currentSongIndex, true);
+    loadAndPlaySong(list[currentSongIndex], true);
   };
 });
