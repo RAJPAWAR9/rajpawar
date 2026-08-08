@@ -13,7 +13,7 @@ body {
   align-items: center;
   min-height: 100vh;
   overflow-x: hidden;
-  padding: 20px;
+  padding: 12px;
 }
 
 #ambient-canvas {
@@ -33,7 +33,7 @@ body {
   border-radius: 20px;
   width: 100%;
   max-width: 480px;
-  padding: 24px;
+  padding: 20px;
   box-shadow: 0 15px 35px rgba(0, 0, 0, 0.6);
 }
 
@@ -56,6 +56,8 @@ body {
   border-radius: 12px;
   color: #fff;
   outline: none;
+  font-size: 14px;
+  width: 100%;
 }
 
 #search-input:focus {
@@ -69,6 +71,7 @@ body {
   border-radius: 20px;
   font-size: 12px;
   font-weight: bold;
+  white-space: nowrap;
 }
 
 .category-buttons {
@@ -76,6 +79,12 @@ body {
   gap: 8px;
   overflow-x: auto;
   margin-bottom: 20px;
+  padding-bottom: 5px;
+  scrollbar-width: none; /* Firefox */
+}
+
+.category-buttons::-webkit-scrollbar {
+  display: none; /* Chrome/Safari */
 }
 
 .cat-btn {
@@ -86,6 +95,7 @@ body {
   border-radius: 20px;
   cursor: pointer;
   white-space: nowrap;
+  font-size: 13px;
 }
 
 .cat-btn.active, .cat-btn:hover {
@@ -102,13 +112,14 @@ body {
 }
 
 .album-art {
-  width: 80px;
-  height: 80px;
+  width: 75px;
+  height: 75px;
   background: linear-gradient(135deg, #1f4037, #99f2c8);
   border-radius: 15px;
   display: flex;
   align-items: center;
   justify-content: center;
+  flex-shrink: 0;
 }
 
 .wave-bars {
@@ -140,8 +151,9 @@ body {
 }
 
 .track-info h2 {
-  font-size: 18px;
+  font-size: 17px;
   margin-top: 4px;
+  word-break: break-word;
 }
 
 .track-info p {
@@ -207,15 +219,17 @@ body {
   font-weight: bold;
 }
 
+/* Extra Controls Sliders Fix for Mobile */
 .extra-controls-row {
   display: flex;
+  flex-wrap: wrap;
   justify-content: space-between;
-  gap: 10px;
+  gap: 12px;
   margin-bottom: 15px;
 }
 
 .control-group {
-  flex: 1;
+  flex: 1 1 100px;
   display: flex;
   flex-direction: column;
   font-size: 11px;
@@ -224,6 +238,7 @@ body {
 
 .control-group input {
   accent-color: #00f2fe;
+  width: 100%;
 }
 
 .features-row {
@@ -238,7 +253,7 @@ body {
   background: rgba(255, 255, 255, 0.08);
   color: #ccc;
   border: 1px solid rgba(255, 255, 255, 0.15);
-  padding: 8px 14px;
+  padding: 8px 12px;
   border-radius: 20px;
   cursor: pointer;
   font-size: 12px;
@@ -298,7 +313,7 @@ body {
   accent-color: #00f2fe;
 }
 
-/* Designer Box Styling */
+/* Designer Box Styling Fix */
 .designer-box {
   height: 50px;
   display: flex;
@@ -309,16 +324,18 @@ body {
   border: 1px solid rgba(0, 242, 254, 0.25);
   border-radius: 12px;
   box-shadow: inset 0 0 10px rgba(0, 0, 0, 0.5);
+  width: 100%;
 }
 
 /* Glowing Dynamic Text Effect */
 .glowing-text {
-  font-size: 15px;
+  font-size: 14px;
   font-weight: 700;
-  letter-spacing: 1.5px;
+  letter-spacing: 1px;
   text-transform: uppercase;
   color: #ffffff;
   animation: colorGlow 3s infinite alternate ease-in-out;
+  text-align: center;
 }
 
 /* Multi-Color Glowing Animation */
@@ -327,22 +344,19 @@ body {
     color: #00f2fe;
     text-shadow: 
       0 0 5px #00f2fe,
-      0 0 12px #00f2fe,
-      0 0 25px #00f2fe;
+      0 0 12px #00f2fe;
   }
   50% {
     color: #ff007f;
     text-shadow: 
       0 0 5px #ff007f,
-      0 0 12px #ff007f,
-      0 0 25px #ff007f;
+      0 0 12px #ff007f;
   }
   100% {
     color: #7928ca;
     text-shadow: 
       0 0 5px #7928ca,
-      0 0 12px #7928ca,
-      0 0 25px #7928ca;
+      0 0 12px #7928ca;
   }
 }
 
@@ -361,6 +375,7 @@ body {
   justify-content: space-between;
   align-items: center;
   margin-bottom: 4px;
+  gap: 10px;
 }
 
 .song-item:hover, .song-item.active {
@@ -370,9 +385,46 @@ body {
 .song-title-text {
   font-size: 13px;
   font-weight: 500;
+  flex: 1;
+  word-break: break-word;
 }
 
 .song-artist-text {
   font-size: 11px;
   color: #777;
+  text-align: right;
+  max-width: 40%;
+  word-break: break-word;
+}
+
+/* Specific Mobile Screen Adjustments */
+@media (max-width: 480px) {
+  body {
+    padding: 8px;
+  }
+  
+  .player-container {
+    padding: 16px;
+    border-radius: 16px;
+  }
+
+  .extra-controls-row {
+    flex-direction: column;
+    gap: 10px;
+  }
+
+  .control-group {
+    width: 100%;
+  }
+
+  .features-row {
+    justify-content: space-between;
+  }
+
+  .control-btn {
+    flex: 1 1 auto;
+    text-align: center;
+    font-size: 11px;
+    padding: 6px 10px;
+  }
 }
