@@ -1,18 +1,13 @@
 /**
  * BOOSTER V0.9 - Next-Gen Audio OS Engine
- * Integrated Password Protection + Working Queue & 10s Auto-Mix Crossfade Remix
- * Mobile Touch Gestures & Dynamic Responsive Control
- * Dezained by raj pawar
+ * Designed by Raj Pawar
  */
 
-// SET YOUR SECURITY PASSWORD HERE
 const SECURITY_PASSWORD = "raj123";
 
-// Folder Paths
 const BASE_FOLDER_2026 = "song/2026 music";
 const BASE_FOLDER_90S = "song/2026 music/90s";
 
-// Track Database
 const playlist = {
   "Trending": [
     { title: "Aa Re Pritam Pyaare", artist: "Mamta Sharma, Sajid-Wajid", file: "Aa Re Pritam Pyaare" },
@@ -74,7 +69,6 @@ const playlist = {
   ]
 };
 
-// State Variables
 let currentCategory = "Trending";
 let currentSongIndex = 0;
 let displayedList = [];
@@ -91,7 +85,6 @@ let crossfadeTime = 10;
 let crossfadeStarted = false;
 let audioCtx, analyser, srcNodeA, srcNodeB;
 
-// Toast Notifications
 function showToast(message) {
   const container = document.getElementById('toast-container');
   if (!container) return;
@@ -102,7 +95,6 @@ function showToast(message) {
   setTimeout(() => { toast.remove(); }, 3000);
 }
 
-// Password Lock System
 function initPasswordLock() {
   const lockBtn = document.getElementById('unlock-btn');
   const passInput = document.getElementById('access-pass');
@@ -139,7 +131,6 @@ function getActiveList() {
   return playlist[currentCategory] || playlist["Trending"];
 }
 
-// Mood Based Glow Accent
 function updateMoodLighting(song) {
   const ambientGlow = document.getElementById('ambient-glow');
   if (!ambientGlow) return;
@@ -303,12 +294,12 @@ function loadAndPlaySong(songToPlay = null, isManualTrigger = true) {
   }
 
   document.getElementById('mini-title').textContent = song.title;
-  document.getElementById('mini-artist').textContent = song.artist + " • Dezained by raj pawar";
+  document.getElementById('mini-artist').textContent = song.artist + " • Designed by Raj Pawar";
   document.getElementById('modal-title').textContent = song.title;
-  document.getElementById('modal-artist').textContent = song.artist + " • Dezained by raj pawar";
+  document.getElementById('modal-artist').textContent = song.artist + " • Designed by Raj Pawar";
   
   if (document.getElementById('np-title')) document.getElementById('np-title').textContent = song.title;
-  if (document.getElementById('np-artist')) document.getElementById('np-artist').textContent = song.artist + " • Dezained by raj pawar";
+  if (document.getElementById('np-artist')) document.getElementById('np-artist').textContent = song.artist + " • Designed by Raj Pawar";
 
   updateMoodLighting(song);
   showToast(`Now Playing: ${song.title}`);
@@ -345,7 +336,6 @@ function attachAudioEvents(audioPlayer) {
       document.getElementById('modal-time-current').textContent = formattedCurrent;
       document.getElementById('modal-time-total').textContent = formattedTotal;
 
-      // Auto-Mix 10s Crossfade Trigger
       const timeLeft = activeAudio.duration - activeAudio.currentTime;
       if (timeLeft <= crossfadeTime && !crossfadeStarted && crossfadeTime > 0) {
         crossfadeStarted = true;
@@ -439,16 +429,18 @@ document.addEventListener('DOMContentLoaded', () => {
   displayedList = getActiveList();
   renderTrendingGrid();
 
-  const crossSlider = document.getElementById('crossfade-slider');
-  const crossVal = document.getElementById('crossfade-val');
-  if (crossSlider) {
-    crossSlider.value = 10;
-    if (crossVal) crossVal.textContent = '10s';
-    crossSlider.oninput = (e) => {
+  // Sync All Crossfade Inputs
+  const crossInputs = document.querySelectorAll('.crossfade-slider-input');
+  const crossDisps = document.querySelectorAll('.crossfade-val-disp');
+
+  crossInputs.forEach(input => {
+    input.value = crossfadeTime;
+    input.oninput = (e) => {
       crossfadeTime = parseInt(e.target.value);
-      if (crossVal) crossVal.textContent = `${crossfadeTime}s`;
+      crossInputs.forEach(i => i.value = crossfadeTime);
+      crossDisps.forEach(d => d.textContent = `${crossfadeTime}s`);
     };
-  }
+  });
 
   const masterBar = document.getElementById('master-player-bar');
   const playerModal = document.getElementById('player-modal');
@@ -465,17 +457,15 @@ document.addEventListener('DOMContentLoaded', () => {
     modalClose.onclick = () => { playerModal.classList.remove('active'); };
   }
 
-  // Mobile Touch Swipe Gesture
   let touchStartY = 0;
   if (playerModal) {
-    playerModal.addEventListener('touchstart', (e) => { touchStartY = e.touches[0].clientY; });
+    playerModal.addEventListener('touchstart', (e) => { touchStartY = e.touches[0].clientY; }, {passive: true});
     playerModal.addEventListener('touchend', (e) => {
       let touchEndY = e.changedTouches[0].clientY;
       if (touchEndY - touchStartY > 80) playerModal.classList.remove('active');
-    });
+    }, {passive: true});
   }
 
-  // Keyboard Shortcuts
   document.addEventListener('keydown', (e) => {
     if (e.target.tagName === 'INPUT') return;
     if (e.code === 'Space') {
@@ -493,7 +483,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   });
 
-  // Category Filters
+  // Seamless Animated Category Switch
   const catBtns = [
     { id: 'btn-2026', cat: 'Trending' },
     { id: 'btn-90s', cat: '90s' },
@@ -505,12 +495,18 @@ document.addEventListener('DOMContentLoaded', () => {
     const btn = document.getElementById(item.id);
     if (btn) {
       btn.onclick = () => {
-        document.querySelectorAll('.cat-btn').forEach(b => b.classList.remove('active'));
-        btn.classList.add('active');
-        currentCategory = item.cat;
-        displayedList = getActiveList();
-        currentSongIndex = 0;
-        renderTrendingGrid();
+        const grid = document.getElementById('trending-grid');
+        if (grid) grid.classList.add('animating');
+
+        setTimeout(() => {
+          document.querySelectorAll('.cat-btn').forEach(b => b.classList.remove('active'));
+          btn.classList.add('active');
+          currentCategory = item.cat;
+          displayedList = getActiveList();
+          currentSongIndex = 0;
+          renderTrendingGrid();
+          if (grid) grid.classList.remove('animating');
+        }, 150);
       };
     }
   });
