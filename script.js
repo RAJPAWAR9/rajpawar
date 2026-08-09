@@ -1,6 +1,5 @@
 /**
- * BOOSTER V0.9 - Next-Gen Audio OS Engine
- * Fixed Syntax Errors & Optimizations
+ * BOOSTER V0.9 - Next-Gen Audio OS Engine & Pro DSP Suite
  * Designed by Raj Pawar
  */
 
@@ -95,15 +94,27 @@ let customQueue = [];
 
 let playerA = new Audio();
 let playerB = new Audio();
+playerA.crossOrigin = "anonymous";
+playerB.crossOrigin = "anonymous";
+
 let activeAudio = playerA;
 let nextAudio = playerB;
 
 let globalVolume = 1.0;
 let crossfadeTime = 10;
 let crossfadeStarted = false;
-let audioCtx, analyser, srcNodeA, srcNodeB;
 
-const IS_MOBILE = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent) || (window.innerWidth <= 768);
+// Audio Context & DSP Pipeline Nodes
+let audioCtx, analyser, srcNodeA, srcNodeB;
+let masterGain, bassFilterNode, trebleFilterNode, pannerNode, vibeBassNode;
+let eqNodes = [];
+const eqFrequencies = [60, 230, 910, 3600, 14000];
+
+// State Controls
+let isDspEnabled = false;
+let isVibeModeEnabled = false;
+let vibeIntensity = 0.5; // Range 0 to 1
+let lastVibrationTime = 0;
 
 function showToast(message) {
   const container = document.getElementById('toast-container');
@@ -167,33 +178,122 @@ function updateMoodLighting(song) {
   }
 }
 
-function initBeatSync() {
-  if (IS_MOBILE) return;
+/**
+ * Initializes Web Audio Context and DSP Graph
+ */
+function initAudioEngine() {
   if (audioCtx) return;
 
   try {
-    const AudioContext = window.AudioContext || window.webkitAudioContext;
-    audioCtx = new AudioContext();
+    const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+    audioCtx = new AudioContextClass();
 
     analyser = audioCtx.createAnalyser();
-    analyser.fftSize = 256;
+    analyser.fftSize = 512;
 
     srcNodeA = audioCtx.createMediaElementSource(playerA);
     srcNodeB = audioCtx.createMediaElementSource(playerB);
 
-    srcNodeA.connect(analyser);
-    srcNodeB.connect(analyser);
+    // Create DSP Filters
+    masterGain = audioCtx.createGain();
     
-    analyser.connect(audioCtx.destination);
-    
+    // Bass Boost Filter
+    bassFilterNode = audioCtx.createBiquadFilter();
+    bassFilterNode.type = "lowshelf";
+    bassFilterNode.frequency.value = 150;
+    bassFilterNode.gain.value = 0;
+
+    // Treble Boost Filter
+    trebleFilterNode = audioCtx.createBiquadFilter();
+    trebleFilterNode.type = "highshelf";
+    trebleFilterNode.frequency.value = 3000;
+    trebleFilterNode.gain.value = 0;
+
+    // Extreme Vibe Sub-Bass Node
+    vibeBassNode = audioCtx.createBiquadFilter();
+    vibeBassNode.type = "lowshelf";
+    vibeBassNode.frequency.value = 80;
+    vibeBassNode.gain.value = 0;
+
+    // 5-Band Equalizer Chain
+    eqNodes = eqFrequencies.map((freq, index) => {
+      const eq = audioCtx.createBiquadFilter();
+      if (index === 0) eq.type = 'lowshelf';
+      else if (index === eqFrequencies.length - 1) eq.type = 'highshelf';
+      else eq.type = 'peaking';
+      eq.frequency.value = freq;
+      eq.gain.value = 0;
+      return eq;
+    });
+
+    // 3D Panner
+    if (audioCtx.createStereoPanner) {
+      pannerNode = audioCtx.createStereoPanner();
+      pannerNode.pan.value = 0;
+    }
+
+    // Connect Engine
+    routeAudioGraph();
     renderBeatSyncVisualizer();
   } catch (e) {
-    console.log("Audio Context Error:", e);
+    console.log("Audio Engine Initialization Error:", e);
   }
 }
 
+/**
+ * Direct Audio Routing Protocol:
+ * If DSP is OFF: Direct Audio Source -> Analyser -> Audio Destination (Pure Studio Original sound)
+ * If DSP is ON: Audio Source -> Bass -> Treble -> Vibe -> EQ Bands -> Panner -> Master Gain -> Analyser -> Audio Destination
+ */
+function routeAudioGraph() {
+  if (!audioCtx) return;
+
+  srcNodeA.disconnect();
+  srcNodeB.disconnect();
+
+  if (!isDspEnabled && !isVibeModeEnabled) {
+    // Zero Loss Master Direct Bypass Connection
+    srcNodeA.connect(analyser);
+    srcNodeB.connect(analyser);
+    analyser.disconnect();
+    analyser.connect(audioCtx.destination);
+    
+    document.getElementById('dsp-status-desc').textContent = "Status: Pure Direct Studio Bypass (0% Quality Loss)";
+  } else {
+    // DSP Pipeline Active Connection
+    srcNodeA.connect(bassFilterNode);
+    srcNodeB.connect(bassFilterNode);
+
+    let current = bassFilterNode;
+    current.connect(trebleFilterNode);
+    current = trebleFilterNode;
+
+    current.connect(vibeBassNode);
+    current = vibeBassNode;
+
+    eqNodes.forEach((eq) => {
+      current.connect(eq);
+      current = eq;
+    });
+
+    if (pannerNode) {
+      current.connect(pannerNode);
+      current = pannerNode;
+    }
+
+    current.connect(masterGain);
+    masterGain.connect(analyser);
+    analyser.disconnect();
+    analyser.connect(audioCtx.destination);
+
+    document.getElementById('dsp-status-desc').textContent = "Status: Pro Audio DSP & Extreme Vibe Active";
+  }
+}
+
+/**
+ * Dynamic Haptic Sync & Audio Visualizer Frame Loop
+ */
 function renderBeatSyncVisualizer() {
-  if (IS_MOBILE) return;
   const canvas = document.getElementById("visualizer-canvas");
   if (!canvas) return;
   const ctx = canvas.getContext("2d");
@@ -212,23 +312,43 @@ function renderBeatSyncVisualizer() {
     requestAnimationFrame(renderFrame);
     if (analyser) analyser.getByteFrequencyData(dataArray);
 
-    let bassSum = 0;
-    for (let i = 0; i < 10; i++) bassSum += dataArray[i] || 0;
-    let bassAvg = bassSum / 10;
+    // Sub-Bass Analysis (<100Hz)
+    let subBassSum = 0;
+    const subBassBins = Math.min(10, bufferLength);
+    for (let i = 0; i < subBassBins; i++) {
+      subBassSum += dataArray[i] || 0;
+    }
+    let subBassAvg = subBassBins > 0 ? subBassSum / subBassBins : 0;
 
+    // Dynamic Haptic Beat Vibration (Mobile Browser)
+    if (isVibeModeEnabled && subBassAvg > 190 && "vibrate" in navigator) {
+      const now = Date.now();
+      if (now - lastVibrationTime > 180) { // Throttle vibrations to sync with beat drops
+        const duration = Math.floor((subBassAvg / 255) * 60 * vibeIntensity);
+        if (duration > 10) navigator.vibrate(duration);
+        lastVibrationTime = now;
+      }
+    }
+
+    // Dynamic Visualizer Pulse and Canvas Glow
     const ambientGlow = document.getElementById("ambient-glow");
     if (ambientGlow && !activeAudio.paused) {
-      ambientGlow.style.transform = `translate(-50%, -50%) scale(${1 + (bassAvg / 255) * 0.15})`;
+      const scaleVal = 1 + (subBassAvg / 255) * 0.25;
+      ambientGlow.style.transform = `translate(-50%, -50%) scale(${scaleVal})`;
     }
 
     ctx.clearRect(0, 0, canvas.width, canvas.height);
     if (!activeAudio.paused && analyser) {
+      let radius = 80 + (subBassAvg / 255) * 350;
       let gradient = ctx.createRadialGradient(
-        canvas.width / 2, canvas.height / 2, 20,
-        canvas.width / 2, canvas.height / 2, 100 + (bassAvg / 255) * 400
+        canvas.width / 2, canvas.height / 2, 10,
+        canvas.width / 2, canvas.height / 2, Math.max(radius, 20)
       );
-      gradient.addColorStop(0, `hsla(${(Date.now() / 25) % 360}, 100%, 50%, 0.2)`);
+      
+      const dynamicHue = (Date.now() / 20 + subBassAvg) % 360;
+      gradient.addColorStop(0, `hsla(${dynamicHue}, 100%, 50%, ${0.15 + (subBassAvg/255) * 0.25})`);
       gradient.addColorStop(1, 'rgba(0,0,0,0)');
+      
       ctx.fillStyle = gradient;
       ctx.fillRect(0, 0, canvas.width, canvas.height);
     }
@@ -308,10 +428,8 @@ function getNextSong() {
 }
 
 function loadAndPlaySong(songToPlay = null, isManualTrigger = true) {
-  if (!IS_MOBILE) {
-    initBeatSync();
-    if (audioCtx && audioCtx.state === 'suspended') audioCtx.resume();
-  }
+  initAudioEngine();
+  if (audioCtx && audioCtx.state === 'suspended') audioCtx.resume();
 
   const list = displayedList.length > 0 ? displayedList : getActiveList();
   let song = songToPlay || list[currentSongIndex];
@@ -388,7 +506,6 @@ function attachAudioEvents(audioPlayer) {
               nextAudio = temp;
               crossfadeStarted = false;
 
-              // UI Update Fix on Crossfade Complete
               const currentSong = nextSong;
 
               if (!songHistory.some(s => s.file === currentSong.file)) {
@@ -475,10 +592,116 @@ function renderTrendingGrid() {
   });
 }
 
+function bindProDspControls() {
+  // Master DSP Toggle
+  const dspToggle = document.getElementById('master-dsp-toggle');
+  if (dspToggle) {
+    dspToggle.onchange = (e) => {
+      isDspEnabled = e.target.checked;
+      routeAudioGraph();
+      showToast(isDspEnabled ? "Master DSP Enabled" : "Direct Studio Bypass Active");
+    };
+  }
+
+  // Extreme Vibe Mode Toggle & Slider
+  const vibeToggle = document.getElementById('vibe-mode-toggle');
+  const vibeSlider = document.getElementById('vibe-intensity-slider');
+  const vibeDisp = document.getElementById('vibe-slider-val');
+
+  if (vibeToggle) {
+    vibeToggle.onchange = (e) => {
+      isVibeModeEnabled = e.target.checked;
+      if (vibeBassNode) {
+        vibeBassNode.gain.value = isVibeModeEnabled ? (vibeIntensity * 12) : 0;
+      }
+      routeAudioGraph();
+      showToast(isVibeModeEnabled ? "Extreme Bass & Vibe ON" : "Extreme Vibe OFF");
+    };
+  }
+
+  if (vibeSlider) {
+    vibeSlider.oninput = (e) => {
+      const val = parseInt(e.target.value);
+      vibeIntensity = val / 100;
+      if (vibeDisp) vibeDisp.textContent = `${val}%`;
+      if (vibeBassNode && isVibeModeEnabled) {
+        vibeBassNode.gain.value = vibeIntensity * 12; // Dynamic low-end boost up to 12dB
+      }
+    };
+  }
+
+  // Bass Boost Filter
+  const bassSlider = document.getElementById('bass-boost-slider');
+  const bassDisp = document.getElementById('bass-boost-val');
+  if (bassSlider) {
+    bassSlider.oninput = (e) => {
+      const val = parseFloat(e.target.value);
+      if (bassDisp) bassDisp.textContent = `${val} dB`;
+      if (bassFilterNode) bassFilterNode.gain.value = val;
+    };
+  }
+
+  // Treble Clarity Filter
+  const trebleSlider = document.getElementById('treble-boost-slider');
+  const trebleDisp = document.getElementById('treble-boost-val');
+  if (trebleSlider) {
+    trebleSlider.oninput = (e) => {
+      const val = parseFloat(e.target.value);
+      if (trebleDisp) trebleDisp.textContent = `${val} dB`;
+      if (trebleFilterNode) trebleFilterNode.gain.value = val;
+    };
+  }
+
+  // 3D Spatial Panner Slider
+  const pannerSlider = document.getElementById('panner-slider');
+  const pannerDisp = document.getElementById('panner-val');
+  if (pannerSlider) {
+    pannerSlider.oninput = (e) => {
+      const val = parseFloat(e.target.value);
+      if (pannerDisp) {
+        pannerDisp.textContent = val === 0 ? "Center (0.0)" : (val < 0 ? `Left (${val})` : `Right (+${val})`);
+      }
+      if (pannerNode) pannerNode.pan.value = val;
+    };
+  }
+
+  // 5-Band Equalizer Sliders
+  const eqSliders = document.querySelectorAll('.eq-slider');
+  eqSliders.forEach((slider) => {
+    slider.oninput = (e) => {
+      const bandIndex = parseInt(e.target.dataset.band);
+      const val = parseFloat(e.target.value);
+      const container = e.target.parentElement;
+      const disp = container.querySelector('.eq-val');
+      if (disp) disp.textContent = `${val > 0 ? '+' : ''}${val}dB`;
+
+      if (eqNodes[bandIndex]) {
+        eqNodes[bandIndex].gain.value = val;
+      }
+    };
+  });
+
+  // Flat Reset Button
+  const flatBtn = document.getElementById('eq-flat-btn');
+  if (flatBtn) {
+    flatBtn.onclick = () => {
+      eqSliders.forEach((slider) => {
+        slider.value = 0;
+        const container = slider.parentElement;
+        const disp = container.querySelector('.eq-val');
+        if (disp) disp.textContent = "0dB";
+      });
+      eqNodes.forEach(eq => eq.gain.value = 0);
+      showToast("EQ Reset to Flat Mode");
+    };
+  }
+}
+
 document.addEventListener('DOMContentLoaded', () => {
   initPasswordLock();
   displayedList = getActiveList();
   renderTrendingGrid();
+  bindProDspControls();
 
   const crossInputs = document.querySelectorAll('.crossfade-slider-input');
   const crossDisps = document.querySelectorAll('.crossfade-val-disp');
@@ -628,10 +851,8 @@ document.addEventListener('DOMContentLoaded', () => {
   });
 
   const togglePlay = () => {
-    if (!IS_MOBILE) {
-      initBeatSync();
-      if (audioCtx && audioCtx.state === 'suspended') audioCtx.resume();
-    }
+    initAudioEngine();
+    if (audioCtx && audioCtx.state === 'suspended') audioCtx.resume();
     if (!activeAudio.src) { loadAndPlaySong(null, true); return; }
 
     if (activeAudio.paused) {
