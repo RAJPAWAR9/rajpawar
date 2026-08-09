@@ -1,5 +1,6 @@
 /**
  * BOOSTER V0.9 - Next-Gen Audio OS Engine
+ * Fixed Syntax Errors & Optimizations
  * Designed by Raj Pawar
  */
 
@@ -62,7 +63,7 @@ const playlist = {
     { title: "Pal Pal Dil Ke Paas", artist: "Kishore Kumar", file: "Pal_Pal_Dil_Ke_Paas" },
     { title: "Yunhi Tum Mujhse", artist: "Mohd. Rafi & Lata Mangeshkar", file: "Yunhi_Tum_Mujhse" }
   ],
-    "3D Audio": [
+  "3D Audio": [
     { title: "Dil Ka Jo Haal Hai (3D)", artist: "Abhijeet, Shreya Ghoshal", file: "Dil Ka Jo Haal Hai - Abhijeet, Shreya Ghoshal" },
     { title: "Gulabi Aankhen (Unplugged)", artist: "Sanam", file: "Gulabi Aankhen" },
     { title: "Maan Meri Jaan", artist: "King", file: "Maan Meri Jaan" },
@@ -84,8 +85,6 @@ const playlist = {
     { title: "Mere Rashke Qamar", artist: "Nusrat Fateh Ali Khan, Rahat Fateh Ali Khan", file: "Mere Rashke Qamar" },
     { title: "Jo Tere Sang", artist: "Mustafa Ceilingwala", file: "Jo Tere Sang" },
     { title: "Premika Ne Pyar Se", artist: "S.P. Balasubrahmanyam", file: "Premika Ne Pyar Se" }
-  ]
-    
   ]
 };
 
