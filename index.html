@@ -2,142 +2,207 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>BOOSTER V0.9 - Apple Music UI</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>BOOSTER V0.9 - Next-Gen Audio OS</title>
   <link rel="stylesheet" href="style.css">
-  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;700;800&family=JetBrains+Mono:wght@500&display=swap" rel="stylesheet">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
 </head>
-<body>
+<body data-theme="dynamic">
 
-  <!-- Password Overlay -->
+  <!-- Toast Notification Container -->
+  <div id="toast-container" class="toast-container"></div>
+
+  <!-- Password Security Lock Overlay -->
   <div id="lock-screen" class="lock-overlay">
     <div class="lock-card glass-panel">
-      <div class="brand-logo" style="margin: 0 auto 12px auto;"></div>
+      <div class="brand-logo" style="margin: 0 auto 16px auto;"></div>
       <h2>BOOSTER V0.9</h2>
-      <p style="color: var(--text-secondary); font-size: 12px; margin-top: 4px;">Dezained by raj pawar</p>
+      <p style="color: var(--text-secondary); font-size: 13px; margin-top: 4px;">Dezained by raj pawar</p>
       
-      <div class="lock-input-group" style="margin-top: 20px;">
-        <input type="password" id="access-pass" placeholder="Enter Password">
+      <div class="lock-input-group" style="margin-top: 24px;">
+        <input type="password" id="access-pass" placeholder="Enter Security Password">
         <button id="unlock-btn">UNLOCK</button>
       </div>
-      <p id="lock-error" style="color: #ff0055; font-size: 11px; margin-top: 8px; display: none;">Invalid Password!</p>
+      <p id="lock-error" style="color: #ff0055; font-size: 12px; margin-top: 10px; display: none;">Invalid Password! Try again.</p>
     </div>
   </div>
 
+  <!-- Background Layer -->
   <div id="ambient-glow" class="ambient-glow"></div>
+  <canvas id="visualizer-canvas"></canvas>
 
-  <!-- Main Mobile Shell -->
   <div class="app-shell">
     
-    <!-- Top Search Header -->
-    <header class="app-header">
-      <h1 class="page-title">Search</h1>
-      <div class="search-bar-container">
-        <input type="text" id="global-search" placeholder="Artists, Songs, Lyrics and more">
+    <!-- Sidebar -->
+    <aside class="sidebar glass-panel">
+      <div class="brand">
+        <div class="brand-logo"></div>
+        <span class="brand-name">BOOSTER<span class="version">V0.9</span></span>
       </div>
-    </header>
 
-    <!-- Main Viewport -->
+      <nav class="nav-routes">
+        <button class="nav-item active" data-target="view-home">
+          <span class="icon">🏠</span> <span>Home</span>
+        </button>
+        <button class="nav-item" data-target="view-now-playing">
+          <span class="icon">📝</span> <span>Now Playing & Queue</span>
+        </button>
+        <button class="nav-item" data-target="view-pro-audio">
+          <span class="icon">🎛️</span> <span>Pro DSP</span>
+        </button>
+      </nav>
+
+      <div class="sidebar-footer">
+        <div class="designer-badge">Dezained by raj pawar</div>
+        <div class="badge-status">
+          <span class="dot live"></span> Audio Engine: 96kHz / 24-bit
+        </div>
+      </div>
+    </aside>
+
+    <!-- Content Engine -->
     <main class="content-viewport">
       
-      <!-- HOME PAGE (Apple Category Cards) -->
+      <header class="top-header">
+        <div class="search-bar-container">
+          <input type="text" id="global-search" placeholder="Search song, artist, mood...">
+        </div>
+
+        <div class="category-filters">
+          <button class="filter-chip cat-btn active" id="btn-2026">Trending</button>
+          <button class="filter-chip cat-btn" id="btn-90s">90s</button>
+          <button class="filter-chip cat-btn" id="btn-3d">3D Audio</button>
+          <button class="filter-chip cat-btn" id="btn-all">All</button>
+        </div>
+      </header>
+
+      <!-- View 1: Home -->
       <section id="view-home" class="view-panel active">
-        <div class="category-grid">
-          <div class="cat-card red" onclick="filterCategory('Trending')">
-            <span>Apple Music Radio</span>
-          </div>
-          <div class="cat-card purple" onclick="filterCategory('90s')">
-            <span>Bollywood</span>
-          </div>
-          <div class="cat-card pink" onclick="filterCategory('3D Audio')">
-            <span>Pop / 3D</span>
-          </div>
-          <div class="cat-card dark-red" onclick="filterCategory('All')">
-            <span>All Tracks</span>
+        <div class="hero-card glass-panel">
+          <div class="hero-content">
+            <span class="hero-tag">BOOSTER SPOTLIGHT</span>
+            <h1 id="hero-title">Next-Gen Audio Experience</h1>
+            <p id="hero-artist">High-fidelity web playback • Dezained by raj pawar</p>
           </div>
         </div>
 
-        <h3 class="section-title">Songs Library</h3>
-        <div id="trending-grid" class="cards-grid"></div>
+        <div class="section-container">
+          <h2>Track Library</h2>
+          <div id="trending-grid" class="cards-grid"></div>
+        </div>
       </section>
 
-      <!-- SEARCH / LIBRARY VIEW -->
-      <section id="view-library" class="view-panel">
-        <h3 class="section-title">Your Library</h3>
-        <div id="library-list" class="cards-grid"></div>
+      <!-- View 2: Queue & History View -->
+      <section id="view-now-playing" class="view-panel">
+        <div class="now-playing-layout">
+          <div class="art-visual-side">
+            <div id="main-art-display" class="main-art-display"></div>
+            <div class="track-meta">
+              <h2 id="np-title">No Track Selected</h2>
+              <p id="np-artist">Select a track from the library</p>
+            </div>
+          </div>
+          
+          <!-- Queue & History Manager Panel -->
+          <div class="queue-side glass-panel" style="padding: 24px; border-radius: 24px;">
+            <div class="tab-controls" style="display: flex; gap: 12px; margin-bottom: 20px; border-bottom: 1px solid var(--glass-border); padding-bottom: 12px;">
+              <button class="queue-tab active" id="tab-upnext">Up Next Queue</button>
+              <button class="queue-tab" id="tab-history">Recently Played</button>
+            </div>
+
+            <!-- Up Next Tab Container -->
+            <div id="upnext-container" class="queue-tab-content">
+              <div id="upnext-list" style="display: flex; flex-direction: column; gap: 10px; max-height: 400px; overflow-y: auto;"></div>
+            </div>
+
+            <!-- History Tab Container -->
+            <div id="history-container" class="queue-tab-content" style="display: none;">
+              <div id="history-list" style="display: flex; flex-direction: column; gap: 10px; max-height: 400px; overflow-y: auto;"></div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- View 3: Pro Audio DSP -->
+      <section id="view-pro-audio" class="view-panel">
+        <div class="pro-dsp-container glass-panel" style="padding: 24px; border-radius: 24px;">
+          <h2>Pro Audio Controls</h2>
+          <div style="margin-top: 16px;">
+            <label>Crossfade Duration (Auto-Mix Remix)</label>
+            <input type="range" id="crossfade-slider" min="0" max="15" step="1" value="10">
+            <span id="crossfade-val">10s</span>
+          </div>
+        </div>
       </section>
 
     </main>
-
-    <!-- Bottom Apple Mini Player Bar -->
-    <footer class="apple-mini-player" id="mini-player-bar">
-      <div class="mini-art-thumb" id="mini-art">G</div>
-      <div class="mini-info" id="open-full-player">
-        <span id="mini-title" class="title">Select a Song</span>
-        <span id="mini-artist" class="artist">BOOSTER V0.9</span>
-      </div>
-      <div class="mini-controls">
-        <button id="mini-play-btn" class="icon-btn">▶</button>
-        <button id="mini-next-btn" class="icon-btn">⏭</button>
-      </div>
-    </footer>
-
-    <!-- Apple Native Bottom Navigation -->
-    <nav class="bottom-nav">
-      <button class="nav-item active" data-target="view-home">
-        <span class="icon">🏠</span><span>Home</span>
-      </button>
-      <button class="nav-item" data-target="view-library">
-        <span class="icon">📑</span><span>Library</span>
-      </button>
-      <button class="nav-item" data-target="view-home">
-        <span class="icon">🔍</span><span>Search</span>
-      </button>
-    </nav>
-
   </div>
 
-  <!-- APPLE MUSIC FULL SCREEN OVERLAY PLAYER -->
-  <div id="full-player-overlay" class="full-player">
-    <div class="full-player-header">
-      <button id="close-full-player" class="down-arrow">∨</button>
-      <div class="header-line"></div>
-      <button class="more-btn">•••</button>
-    </div>
-
-    <div class="full-art-container">
-      <div id="full-cover-art" class="full-cover-art">G</div>
-    </div>
-
-    <div class="full-meta-row">
-      <div class="title-meta">
-        <h2 id="full-title">Gulabi Ankhen</h2>
-        <p id="full-artist">Mohd. Rafi</p>
-      </div>
-      <button class="star-btn">☆</button>
-    </div>
-
-    <!-- Timeline Scrubber -->
-    <div class="scrubber-container">
-      <input type="range" id="full-progress" min="0" max="100" value="0">
-      <div class="time-labels">
-        <span id="full-current-time">0:00</span>
-        <span id="full-total-time">-0:00</span>
+  <!-- Master Player Bar -->
+  <footer class="master-player-bar glass-panel" id="master-player-bar">
+    <div class="player-left">
+      <div id="mini-art" class="mini-art"></div>
+      <div class="mini-info">
+        <span id="mini-title" class="title">Ready to Play</span>
+        <span id="mini-artist" class="artist">BOOSTER V0.9 • Dezained by raj pawar</span>
       </div>
     </div>
 
-    <!-- Playback Controls -->
-    <div class="full-controls">
-      <button id="full-prev-btn" class="ctrl-btn">⏮</button>
-      <button id="full-play-btn" class="ctrl-btn main-play">▶</button>
-      <button id="full-next-btn" class="ctrl-btn">⏭</button>
+    <div class="player-center">
+      <div class="player-controls">
+        <button id="prev-btn" class="icon-btn">⏮</button>
+        <button id="master-play-btn" class="icon-btn play-main">▶</button>
+        <button id="next-btn" class="icon-btn">⏭</button>
+      </div>
+
+      <div class="timeline-row">
+        <span id="time-current">0:00</span>
+        <div id="progress-bar-container" class="timeline-bar">
+          <div id="progress-fill" class="timeline-fill"></div>
+        </div>
+        <span id="time-total">0:00</span>
+      </div>
     </div>
 
-    <!-- Footer Action Bar -->
-    <div class="full-footer-bar">
-      <button>💬</button>
-      <button>📡</button>
-      <button>≡</button>
+    <div class="player-right">
+      <div class="volume-container">
+        <span>🔊</span>
+        <input type="range" id="master-volume" min="0" max="1" step="0.01" value="0.8">
+      </div>
+    </div>
+  </footer>
+
+  <!-- Slide-Up Player Drawer / Modal Overlay -->
+  <div id="player-modal" class="player-modal glass-panel">
+    <button id="modal-close-btn" class="modal-close-btn">🞃</button>
+    <div class="modal-content">
+      <div id="modal-art" class="modal-art"></div>
+      <div class="modal-meta">
+        <h1 id="modal-title">Ready to Play</h1>
+        <p id="modal-artist">BOOSTER V0.9 • Dezained by raj pawar</p>
+      </div>
+
+      <!-- Live Spectrum Bar Visualizer in Pop-Up -->
+      <div class="modal-spectrum">
+        <span class="bar"></span><span class="bar"></span><span class="bar"></span>
+        <span class="bar"></span><span class="bar"></span><span class="bar"></span>
+      </div>
+
+      <div class="modal-timeline-row">
+        <span id="modal-time-current">0:00</span>
+        <div id="modal-progress-container" class="timeline-bar">
+          <div id="modal-progress-fill" class="timeline-fill"></div>
+        </div>
+        <span id="modal-time-total">0:00</span>
+      </div>
+
+      <div class="modal-controls">
+        <button id="modal-prev-btn" class="icon-btn">⏮</button>
+        <button id="modal-play-btn" class="icon-btn play-main">▶</button>
+        <button id="modal-next-btn" class="icon-btn">⏭</button>
+      </div>
     </div>
   </div>
 
