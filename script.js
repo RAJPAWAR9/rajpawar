@@ -83,7 +83,7 @@ let nextAudio = playerB;
 let globalVolume = 1.0;
 let crossfadeTime = 10;
 let crossfadeStarted = false;
-let audioCtx, analyser, srcNodeA, srcNodeB, gainNode;
+let audioCtx, analyser, srcNodeA, srcNodeB;
 
 function showToast(message) {
   const container = document.getElementById('toast-container');
@@ -155,21 +155,19 @@ function initBeatSync() {
     analyser = audioCtx.createAnalyser();
     analyser.fftSize = 128;
 
-    // Mobile Sound Output Boost (Gain Node Fix)
-    gainNode = audioCtx.createGain();
-    gainNode.gain.value = 1.8; // 180% Boost for Mobile Browser Audio
-
     srcNodeA = audioCtx.createMediaElementSource(playerA);
     srcNodeB = audioCtx.createMediaElementSource(playerB);
 
     srcNodeA.connect(analyser);
     srcNodeB.connect(analyser);
     
-    analyser.connect(gainNode);
-    gainNode.connect(audioCtx.destination);
+    // Pure Untouched Audio Output
+    analyser.connect(audioCtx.destination);
     
     renderBeatSyncVisualizer();
-  } catch (e) {}
+  } catch (e) {
+    console.log("Audio Context Error:", e);
+  }
 }
 
 function renderBeatSyncVisualizer() {
@@ -436,7 +434,6 @@ document.addEventListener('DOMContentLoaded', () => {
   displayedList = getActiveList();
   renderTrendingGrid();
 
-  // Sync All Crossfade Inputs
   const crossInputs = document.querySelectorAll('.crossfade-slider-input');
   const crossDisps = document.querySelectorAll('.crossfade-val-disp');
 
@@ -490,7 +487,6 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   });
 
-  // Seamless Animated Category Switch
   const catBtns = [
     { id: 'btn-2026', cat: 'Trending' },
     { id: 'btn-90s', cat: '90s' },
@@ -518,7 +514,6 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   });
 
-  // Seek Timeline
   const handleSeek = (e, container) => {
     if (!activeAudio.duration) return;
     const rect = container.getBoundingClientRect();
@@ -532,7 +527,6 @@ document.addEventListener('DOMContentLoaded', () => {
   if (progressContainer) progressContainer.onclick = (e) => handleSeek(e, progressContainer);
   if (modalProgressContainer) modalProgressContainer.onclick = (e) => handleSeek(e, modalProgressContainer);
 
-  // Search Filter
   const searchInput = document.getElementById('global-search');
   if (searchInput) {
     searchInput.oninput = (e) => {
@@ -545,7 +539,6 @@ document.addEventListener('DOMContentLoaded', () => {
     };
   }
 
-  // Volume
   const volSlider = document.getElementById('master-volume');
   if (volSlider) {
     volSlider.oninput = (e) => {
@@ -554,7 +547,6 @@ document.addEventListener('DOMContentLoaded', () => {
     };
   }
 
-  // Tabs Toggle
   const tabUpNext = document.getElementById('tab-upnext');
   const tabHistory = document.getElementById('tab-history');
   const upnextCont = document.getElementById('upnext-container');
@@ -575,7 +567,6 @@ document.addEventListener('DOMContentLoaded', () => {
     };
   }
 
-  // Navigation Logic
   const navItems = document.querySelectorAll(".nav-item");
   const viewPanels = document.querySelectorAll(".view-panel");
 
@@ -590,7 +581,6 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   });
 
-  // Controls
   const togglePlay = () => {
     initBeatSync();
     if (audioCtx && audioCtx.state === 'suspended') audioCtx.resume();
