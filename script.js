@@ -56,7 +56,6 @@ const playlist = {
   "90s": [
     { title: "Aise Na Mujhe", artist: "Kishore Kumar", file: "Aise_Na_Mujhe" },
     { title: "Gulabi Ankhen", artist: "Mohd. Rafi", file: "gulabi aahken" },
-    { title: "Kehdoon Tumhen", artist: "Kishore Kumar & Asha Bhosle", file: "Kehdoon_Tumhen" },
     { title: "Kiska Rasta Dekhe", artist: "Kishore Kumar", file: "Kiska_Rasta_Dekhe_" },
     { title: "Mehbooba Mehbooba", artist: "R.D. Burman", file: "Mehbooba Mehbooba" },
     { title: "Pal Bhar Ke Liye", artist: "Kishore Kumar & Asha Bhosle", file: "Pal_Bhar_Ke_Liye_" },
@@ -255,7 +254,7 @@ function updateQueueAndHistoryUI() {
 
   if (upnextList) {
     upnextList.innerHTML = '';
-    let queueToShow = customQueue.length > 0 ? customQueue : [];
+    let queueToShow = customQueue.length > 0 ? [...customQueue] : [];
     if (customQueue.length === 0) {
       for (let i = 1; i <= 5; i++) {
         let idx = (currentSongIndex + i) % list.length;
@@ -388,7 +387,28 @@ function attachAudioEvents(audioPlayer) {
               activeAudio = nextAudio;
               nextAudio = temp;
               crossfadeStarted = false;
+
+              // UI Update Fix on Crossfade Complete
+              const currentSong = nextSong;
+
+              if (!songHistory.some(s => s.file === currentSong.file)) {
+                songHistory.unshift(currentSong);
+                if (songHistory.length > 10) songHistory.pop();
+              }
+
+              document.getElementById('mini-title').textContent = currentSong.title;
+              document.getElementById('mini-artist').textContent = currentSong.artist + " • Designed by Raj Pawar";
+              document.getElementById('modal-title').textContent = currentSong.title;
+              document.getElementById('modal-artist').textContent = currentSong.artist + " • Designed by Raj Pawar";
+              
+              if (document.getElementById('np-title')) document.getElementById('np-title').textContent = currentSong.title;
+              if (document.getElementById('np-artist')) document.getElementById('np-artist').textContent = currentSong.artist + " • Designed by Raj Pawar";
+
+              updateMoodLighting(currentSong);
+              showToast(`Now Playing: ${currentSong.title}`);
+
               updateQueueAndHistoryUI();
+              renderTrendingGrid();
             }
           }, 200);
         }
