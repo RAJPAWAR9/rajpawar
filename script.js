@@ -149,18 +149,20 @@ function updateMoodLighting(song) {
 
 function initBeatSync() {
   if (audioCtx) return;
+  
+  // Mobile Check: Agar user Mobile/Tablet par hai toh Web Audio API bypass kar do (Noise Fix)
+  const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+  if (isMobile) {
+    console.log("Mobile device detected: Bypassing Web Audio API for clean audio playback.");
+    return;
+  }
+
   try {
     const AudioContext = window.AudioContext || window.webkitAudioContext;
-    
-    // Mobile hardware & sample rate fix (stops crackling/distortion)
-    audioCtx = new AudioContext({
-      latencyHint: 'interactive',
-      sampleRate: 44100
-    });
+    audioCtx = new AudioContext();
 
     analyser = audioCtx.createAnalyser();
-    analyser.fftSize = 256; 
-    analyser.smoothingTimeConstant = 0.8;
+    analyser.fftSize = 256;
 
     srcNodeA = audioCtx.createMediaElementSource(playerA);
     srcNodeB = audioCtx.createMediaElementSource(playerB);
@@ -168,7 +170,6 @@ function initBeatSync() {
     srcNodeA.connect(analyser);
     srcNodeB.connect(analyser);
     
-    // Pure Direct Audio Output
     analyser.connect(audioCtx.destination);
     
     renderBeatSyncVisualizer();
