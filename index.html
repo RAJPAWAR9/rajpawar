@@ -2,7 +2,10 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <meta name="theme-color" content="#030407">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <title>BOOSTER V0.9 - Next-Gen Audio OS</title>
   <link rel="stylesheet" href="style.css">
   <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -89,7 +92,7 @@
         </div>
 
         <div class="section-container">
-          <h2>Track Library</h2>
+          <h2 style="margin-bottom: 12px; font-size: 18px;">Track Library</h2>
           <div id="trending-grid" class="cards-grid"></div>
         </div>
       </section>
@@ -106,20 +109,20 @@
           </div>
           
           <!-- Queue & History Manager Panel -->
-          <div class="queue-side glass-panel" style="padding: 24px; border-radius: 24px;">
-            <div class="tab-controls" style="display: flex; gap: 12px; margin-bottom: 20px; border-bottom: 1px solid var(--glass-border); padding-bottom: 12px;">
+          <div class="queue-side glass-panel" style="padding: 20px; border-radius: 20px;">
+            <div class="tab-controls" style="display: flex; gap: 12px; margin-bottom: 16px; border-bottom: 1px solid var(--glass-border); padding-bottom: 10px;">
               <button class="queue-tab active" id="tab-upnext">Up Next Queue</button>
               <button class="queue-tab" id="tab-history">Recently Played</button>
             </div>
 
             <!-- Up Next Tab Container -->
             <div id="upnext-container" class="queue-tab-content">
-              <div id="upnext-list" style="display: flex; flex-direction: column; gap: 10px; max-height: 400px; overflow-y: auto;"></div>
+              <div id="upnext-list" style="display: flex; flex-direction: column; gap: 8px; max-height: 350px; overflow-y: auto;"></div>
             </div>
 
             <!-- History Tab Container -->
             <div id="history-container" class="queue-tab-content" style="display: none;">
-              <div id="history-list" style="display: flex; flex-direction: column; gap: 10px; max-height: 400px; overflow-y: auto;"></div>
+              <div id="history-list" style="display: flex; flex-direction: column; gap: 8px; max-height: 350px; overflow-y: auto;"></div>
             </div>
           </div>
         </div>
@@ -127,12 +130,12 @@
 
       <!-- View 3: Pro Audio DSP -->
       <section id="view-pro-audio" class="view-panel">
-        <div class="pro-dsp-container glass-panel" style="padding: 24px; border-radius: 24px;">
+        <div class="pro-dsp-container glass-panel" style="padding: 20px; border-radius: 20px;">
           <h2>Pro Audio Controls</h2>
           <div style="margin-top: 16px;">
-            <label>Crossfade Duration (Auto-Mix Remix)</label>
-            <input type="range" id="crossfade-slider" min="0" max="15" step="1" value="10">
-            <span id="crossfade-val">10s</span>
+            <label style="font-size: 13px; display: block; margin-bottom: 8px;">Crossfade Duration (Auto-Mix Remix)</label>
+            <input type="range" id="crossfade-slider" min="0" max="15" step="1" value="10" style="width: 100%; accent-color: var(--primary-glow);">
+            <span id="crossfade-val" style="font-family: 'JetBrains Mono', monospace; font-size: 14px; margin-top: 6px; display: inline-block;">10s</span>
           </div>
         </div>
       </section>
