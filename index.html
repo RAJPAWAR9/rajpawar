@@ -53,7 +53,7 @@
           <span class="icon">📝</span> <span>Now Playing & Queue</span>
         </button>
         <button class="nav-item" data-target="view-pro-audio">
-          <span class="icon">🎛️</span> <span>Pro DSP</span>
+          <span class="icon">🎛️</span> <span>Pro DSP & Vibe</span>
         </button>
       </nav>
 
@@ -125,15 +125,127 @@
         </div>
       </section>
 
-      <!-- View 3: Pro Audio DSP -->
+      <!-- View 3: Pro Audio DSP & Extreme Vibe Suite -->
       <section id="view-pro-audio" class="view-panel">
-        <div class="pro-dsp-container glass-panel" style="padding: 20px; border-radius: 20px;">
-          <h2>Pro Audio Controls</h2>
-          <div style="margin-top: 16px;">
+        <div class="dsp-grid" style="display: flex; flex-direction: column; gap: 20px;">
+          
+          <!-- Master DSP Switch & Bypass Indicator -->
+          <div class="glass-panel" style="padding: 20px; border-radius: 20px; display: flex; justify-content: space-between; align-items: center;">
+            <div>
+              <h2 style="font-size: 18px;">Master DSP Engine</h2>
+              <p style="font-size: 12px; color: var(--text-secondary); margin-top: 4px;" id="dsp-status-desc">Status: Pure Direct Studio Bypass (0% Quality Loss)</p>
+            </div>
+            <label class="switch">
+              <input type="checkbox" id="master-dsp-toggle">
+              <span class="slider round"></span>
+            </label>
+          </div>
+
+          <!-- Section 1: Extreme Bass & Vibe Mode -->
+          <div class="glass-panel" style="padding: 20px; border-radius: 20px;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+              <div>
+                <h3 style="font-size: 16px;">EXTREME BASS & VIBE MODE</h3>
+                <p style="font-size: 11px; color: var(--text-secondary);">Deep Sub-Bass Boost & Dynamic Haptic Beat Sync</p>
+              </div>
+              <label class="switch">
+                <input type="checkbox" id="vibe-mode-toggle">
+                <span class="slider round"></span>
+              </label>
+            </div>
+            
+            <div style="margin-top: 14px;">
+              <div style="display: flex; justify-content: space-between; font-size: 12px; margin-bottom: 6px;">
+                <span>Vibration & Bass Intensity</span>
+                <span id="vibe-slider-val" style="font-family: 'JetBrains Mono', monospace; color: var(--primary-glow);">50%</span>
+              </div>
+              <input type="range" id="vibe-intensity-slider" min="0" max="100" value="50" style="width: 100%; accent-color: var(--primary-glow);">
+            </div>
+          </div>
+
+          <!-- Section 2: Quick Mix Controls -->
+          <div class="glass-panel" style="padding: 20px; border-radius: 20px;">
+            <h3 style="font-size: 16px; margin-bottom: 16px;">Quick Tone Filters</h3>
+            
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px;">
+              <div>
+                <div style="display: flex; justify-content: space-between; font-size: 12px; margin-bottom: 6px;">
+                  <span>Bass Boost Filter</span>
+                  <span id="bass-boost-val" style="font-family: 'JetBrains Mono', monospace; color: var(--primary-glow);">0 dB</span>
+                </div>
+                <input type="range" id="bass-boost-slider" min="0" max="12" step="0.5" value="0" style="width: 100%; accent-color: var(--primary-glow);">
+              </div>
+
+              <div>
+                <div style="display: flex; justify-content: space-between; font-size: 12px; margin-bottom: 6px;">
+                  <span>Treble Clarity Filter</span>
+                  <span id="treble-boost-val" style="font-family: 'JetBrains Mono', monospace; color: var(--primary-glow);">0 dB</span>
+                </div>
+                <input type="range" id="treble-boost-slider" min="0" max="12" step="0.5" value="0" style="width: 100%; accent-color: var(--primary-glow);">
+              </div>
+            </div>
+
+            <div style="margin-top: 20px;">
+              <div style="display: flex; justify-content: space-between; font-size: 12px; margin-bottom: 6px;">
+                <span>3D Spatial Stereo Panner</span>
+                <span id="panner-val" style="font-family: 'JetBrains Mono', monospace; color: var(--primary-glow);">Center (0.0)</span>
+              </div>
+              <input type="range" id="panner-slider" min="-1" max="1" step="0.05" value="0" style="width: 100%; accent-color: var(--primary-glow);">
+              <div style="display: flex; justify-content: space-between; font-size: 10px; color: var(--text-secondary); margin-top: 4px;">
+                <span>Left</span>
+                <span>Center</span>
+                <span>Right</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Section 3: 5-Band Equalizer -->
+          <div class="glass-panel" style="padding: 20px; border-radius: 20px;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+              <h3 style="font-size: 16px;">5-Band Pro Equalizer</h3>
+              <button id="eq-flat-btn" style="background: rgba(255,255,255,0.08); border: 1px solid var(--glass-border); color: #fff; padding: 6px 14px; border-radius: 8px; cursor: pointer; font-size: 12px; font-weight: 600;">Flat Reset</button>
+            </div>
+
+            <div class="eq-bands-container" style="display: grid; grid-template-columns: repeat(5, 1fr); gap: 12px; text-align: center;">
+              <div>
+                <span style="font-size: 10px; color: var(--text-secondary); display: block; margin-bottom: 8px;">60Hz<br>(Sub-Bass)</span>
+                <input type="range" class="eq-slider" data-band="0" min="-12" max="12" step="0.5" value="0" style="writing-mode: bt-lr; -webkit-appearance: slider-vertical; height: 120px; width: 100%;">
+                <span class="eq-val" style="font-size: 10px; font-family: 'JetBrains Mono', monospace; display: block; margin-top: 6px;">0dB</span>
+              </div>
+
+              <div>
+                <span style="font-size: 10px; color: var(--text-secondary); display: block; margin-bottom: 8px;">230Hz<br>(Warmth)</span>
+                <input type="range" class="eq-slider" data-band="1" min="-12" max="12" step="0.5" value="0" style="writing-mode: bt-lr; -webkit-appearance: slider-vertical; height: 120px; width: 100%;">
+                <span class="eq-val" style="font-size: 10px; font-family: 'JetBrains Mono', monospace; display: block; margin-top: 6px;">0dB</span>
+              </div>
+
+              <div>
+                <span style="font-size: 10px; color: var(--text-secondary); display: block; margin-bottom: 8px;">910Hz<br>(Vocals)</span>
+                <input type="range" class="eq-slider" data-band="2" min="-12" max="12" step="0.5" value="0" style="writing-mode: bt-lr; -webkit-appearance: slider-vertical; height: 120px; width: 100%;">
+                <span class="eq-val" style="font-size: 10px; font-family: 'JetBrains Mono', monospace; display: block; margin-top: 6px;">0dB</span>
+              </div>
+
+              <div>
+                <span style="font-size: 10px; color: var(--text-secondary); display: block; margin-bottom: 8px;">3.6kHz<br>(Presence)</span>
+                <input type="range" class="eq-slider" data-band="3" min="-12" max="12" step="0.5" value="0" style="writing-mode: bt-lr; -webkit-appearance: slider-vertical; height: 120px; width: 100%;">
+                <span class="eq-val" style="font-size: 10px; font-family: 'JetBrains Mono', monospace; display: block; margin-top: 6px;">0dB</span>
+              </div>
+
+              <div>
+                <span style="font-size: 10px; color: var(--text-secondary); display: block; margin-bottom: 8px;">14kHz<br>(Air/Clarity)</span>
+                <input type="range" class="eq-slider" data-band="4" min="-12" max="12" step="0.5" value="0" style="writing-mode: bt-lr; -webkit-appearance: slider-vertical; height: 120px; width: 100%;">
+                <span class="eq-val" style="font-size: 10px; font-family: 'JetBrains Mono', monospace; display: block; margin-top: 6px;">0dB</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Section 4: Crossfade Mix -->
+          <div class="glass-panel" style="padding: 20px; border-radius: 20px;">
             <label style="font-size: 13px; display: block; margin-bottom: 8px;">Crossfade Duration (Auto-Mix Remix)</label>
             <input type="range" class="crossfade-slider-input" min="0" max="15" step="1" value="10" style="width: 100%; accent-color: var(--primary-glow);">
             <span class="crossfade-val-disp" style="font-family: 'JetBrains Mono', monospace; font-size: 14px; margin-top: 6px; display: inline-block;">10s</span>
           </div>
+
         </div>
       </section>
 
@@ -203,7 +315,6 @@
         <button id="modal-next-btn" class="icon-btn">⏭</button>
       </div>
 
-      <!-- Quick Crossfade Setting Inside Drawer -->
       <div class="modal-crossfade-box" style="margin-top: 24px; width: 100%; background: rgba(255,255,255,0.03); padding: 12px; border-radius: 12px; border: 1px solid var(--glass-border);">
         <div style="display: flex; justify-content: space-between; font-size: 11px; margin-bottom: 6px; color: var(--text-secondary);">
           <span>Crossfade Transition</span>
