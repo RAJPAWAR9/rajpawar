@@ -22,7 +22,7 @@
     <div class="lock-card glass-panel">
       <div class="brand-logo" style="margin: 0 auto 16px auto;"></div>
       <h2>BOOSTER V0.9</h2>
-      <p style="color: var(--text-secondary); font-size: 13px; margin-top: 4px;">Dezained by raj pawar</p>
+      <p style="color: var(--text-secondary); font-size: 13px; margin-top: 4px;">Designed by Raj Pawar</p>
       
       <div class="lock-input-group" style="margin-top: 24px;">
         <input type="password" id="access-pass" placeholder="Enter Security Password">
@@ -58,7 +58,7 @@
       </nav>
 
       <div class="sidebar-footer">
-        <div class="designer-badge">Dezained by raj pawar</div>
+        <div class="designer-badge">Designed by Raj Pawar</div>
         <div class="badge-status">
           <span class="dot live"></span> Audio Engine: 96kHz / 24-bit
         </div>
@@ -87,13 +87,13 @@
           <div class="hero-content">
             <span class="hero-tag">BOOSTER SPOTLIGHT</span>
             <h1 id="hero-title">Next-Gen Audio Experience</h1>
-            <p id="hero-artist">High-fidelity web playback • Dezained by raj pawar</p>
+            <p id="hero-artist">High-fidelity web playback • Designed by Raj Pawar</p>
           </div>
         </div>
 
         <div class="section-container">
           <h2 style="margin-bottom: 12px; font-size: 18px;">Track Library</h2>
-          <div id="trending-grid" class="cards-grid"></div>
+          <div id="trending-grid" class="cards-grid transition-fade"></div>
         </div>
       </section>
 
@@ -108,19 +108,16 @@
             </div>
           </div>
           
-          <!-- Queue & History Manager Panel -->
           <div class="queue-side glass-panel" style="padding: 20px; border-radius: 20px;">
             <div class="tab-controls" style="display: flex; gap: 12px; margin-bottom: 16px; border-bottom: 1px solid var(--glass-border); padding-bottom: 10px;">
               <button class="queue-tab active" id="tab-upnext">Up Next Queue</button>
               <button class="queue-tab" id="tab-history">Recently Played</button>
             </div>
 
-            <!-- Up Next Tab Container -->
             <div id="upnext-container" class="queue-tab-content">
               <div id="upnext-list" style="display: flex; flex-direction: column; gap: 8px; max-height: 350px; overflow-y: auto;"></div>
             </div>
 
-            <!-- History Tab Container -->
             <div id="history-container" class="queue-tab-content" style="display: none;">
               <div id="history-list" style="display: flex; flex-direction: column; gap: 8px; max-height: 350px; overflow-y: auto;"></div>
             </div>
@@ -134,8 +131,8 @@
           <h2>Pro Audio Controls</h2>
           <div style="margin-top: 16px;">
             <label style="font-size: 13px; display: block; margin-bottom: 8px;">Crossfade Duration (Auto-Mix Remix)</label>
-            <input type="range" id="crossfade-slider" min="0" max="15" step="1" value="10" style="width: 100%; accent-color: var(--primary-glow);">
-            <span id="crossfade-val" style="font-family: 'JetBrains Mono', monospace; font-size: 14px; margin-top: 6px; display: inline-block;">10s</span>
+            <input type="range" class="crossfade-slider-input" min="0" max="15" step="1" value="10" style="width: 100%; accent-color: var(--primary-glow);">
+            <span class="crossfade-val-disp" style="font-family: 'JetBrains Mono', monospace; font-size: 14px; margin-top: 6px; display: inline-block;">10s</span>
           </div>
         </div>
       </section>
@@ -149,7 +146,7 @@
       <div id="mini-art" class="mini-art"></div>
       <div class="mini-info">
         <span id="mini-title" class="title">Ready to Play</span>
-        <span id="mini-artist" class="artist">BOOSTER V0.9 • Dezained by raj pawar</span>
+        <span id="mini-artist" class="artist">BOOSTER V0.9 • Designed by Raj Pawar</span>
       </div>
     </div>
 
@@ -177,17 +174,16 @@
     </div>
   </footer>
 
-  <!-- Slide-Up Player Drawer / Modal Overlay -->
+  <!-- Slide-Up Player Drawer Modal -->
   <div id="player-modal" class="player-modal glass-panel">
     <button id="modal-close-btn" class="modal-close-btn">🞃</button>
     <div class="modal-content">
       <div id="modal-art" class="modal-art"></div>
       <div class="modal-meta">
         <h1 id="modal-title">Ready to Play</h1>
-        <p id="modal-artist">BOOSTER V0.9 • Dezained by raj pawar</p>
+        <p id="modal-artist">BOOSTER V0.9 • Designed by Raj Pawar</p>
       </div>
 
-      <!-- Live Spectrum Bar Visualizer in Pop-Up -->
       <div class="modal-spectrum">
         <span class="bar"></span><span class="bar"></span><span class="bar"></span>
         <span class="bar"></span><span class="bar"></span><span class="bar"></span>
@@ -205,6 +201,15 @@
         <button id="modal-prev-btn" class="icon-btn">⏮</button>
         <button id="modal-play-btn" class="icon-btn play-main">▶</button>
         <button id="modal-next-btn" class="icon-btn">⏭</button>
+      </div>
+
+      <!-- Quick Crossfade Setting Inside Drawer -->
+      <div class="modal-crossfade-box" style="margin-top: 24px; width: 100%; background: rgba(255,255,255,0.03); padding: 12px; border-radius: 12px; border: 1px solid var(--glass-border);">
+        <div style="display: flex; justify-content: space-between; font-size: 11px; margin-bottom: 6px; color: var(--text-secondary);">
+          <span>Crossfade Transition</span>
+          <span class="crossfade-val-disp">10s</span>
+        </div>
+        <input type="range" class="crossfade-slider-input" min="0" max="15" step="1" value="10" style="width: 100%; accent-color: var(--primary-glow);">
       </div>
     </div>
   </div>
