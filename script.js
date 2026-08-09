@@ -85,6 +85,9 @@ let crossfadeTime = 10;
 let crossfadeStarted = false;
 let audioCtx, analyser, srcNodeA, srcNodeB;
 
+// Strict Mobile Detector
+const IS_MOBILE = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent) || (window.innerWidth <= 768);
+
 function showToast(message) {
   const container = document.getElementById('toast-container');
   if (!container) return;
@@ -148,14 +151,9 @@ function updateMoodLighting(song) {
 }
 
 function initBeatSync() {
+  // Mobile devices par Web Audio API block kar diya hai taaki crackling zero ho
+  if (IS_MOBILE) return;
   if (audioCtx) return;
-  
-  // Mobile Check: Agar user Mobile/Tablet par hai toh Web Audio API bypass kar do (Noise Fix)
-  const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
-  if (isMobile) {
-    console.log("Mobile device detected: Bypassing Web Audio API for clean audio playback.");
-    return;
-  }
 
   try {
     const AudioContext = window.AudioContext || window.webkitAudioContext;
@@ -179,6 +177,7 @@ function initBeatSync() {
 }
 
 function renderBeatSyncVisualizer() {
+  if (IS_MOBILE) return; // Disable visualizer on mobile
   const canvas = document.getElementById("visualizer-canvas");
   if (!canvas) return;
   const ctx = canvas.getContext("2d");
@@ -190,7 +189,7 @@ function renderBeatSyncVisualizer() {
   resize();
   window.addEventListener("resize", resize);
 
-  const bufferLength = analyser.frequencyBinCount;
+  const bufferLength = analyser ? analyser.frequencyBinCount : 0;
   const dataArray = new Uint8Array(bufferLength);
 
   function renderFrame() {
@@ -207,7 +206,7 @@ function renderBeatSyncVisualizer() {
     }
 
     ctx.clearRect(0, 0, canvas.width, canvas.height);
-    if (!activeAudio.paused) {
+    if (!activeAudio.paused && analyser) {
       let gradient = ctx.createRadialGradient(
         canvas.width / 2, canvas.height / 2, 20,
         canvas.width / 2, canvas.height / 2, 100 + (bassAvg / 255) * 400
@@ -293,8 +292,10 @@ function getNextSong() {
 }
 
 function loadAndPlaySong(songToPlay = null, isManualTrigger = true) {
-  initBeatSync();
-  if (audioCtx && audioCtx.state === 'suspended') audioCtx.resume();
+  if (!IS_MOBILE) {
+    initBeatSync();
+    if (audioCtx && audioCtx.state === 'suspended') audioCtx.resume();
+  }
 
   const list = displayedList.length > 0 ? displayedList : getActiveList();
   let song = songToPlay || list[currentSongIndex];
@@ -590,8 +591,10 @@ document.addEventListener('DOMContentLoaded', () => {
   });
 
   const togglePlay = () => {
-    initBeatSync();
-    if (audioCtx && audioCtx.state === 'suspended') audioCtx.resume();
+    if (!IS_MOBILE) {
+      initBeatSync();
+      if (audioCtx && audioCtx.state === 'suspended') audioCtx.resume();
+    }
     if (!activeAudio.src) { loadAndPlaySong(null, true); return; }
 
     if (activeAudio.paused) {
