@@ -62,9 +62,29 @@ const playlist = {
     { title: "Pal Pal Dil Ke Paas", artist: "Kishore Kumar", file: "Pal_Pal_Dil_Ke_Paas" },
     { title: "Yunhi Tum Mujhse", artist: "Mohd. Rafi & Lata Mangeshkar", file: "Yunhi_Tum_Mujhse" }
   ],
-  "3D Audio": [
+    "3D Audio": [
     { title: "Dil Ka Jo Haal Hai (3D)", artist: "Abhijeet, Shreya Ghoshal", file: "Dil Ka Jo Haal Hai - Abhijeet, Shreya Ghoshal" },
-    { title: "Gulabi Aankhen (Unplugged)", artist: "Sanam", file: "Gulabi Aankhen" }
+    { title: "Gulabi Aankhen (Unplugged)", artist: "Sanam", file: "Gulabi Aankhen" },
+    { title: "Maan Meri Jaan", artist: "King", file: "Maan Meri Jaan" },
+    { title: "Vaaste", artist: "Dhvani Bhanushali, Tanishk Bagchi", file: "Vaaste" },
+    { title: "Kesariya", artist: "Arijit Singh, Pritam", file: "Kesariya" },
+    { title: "Gehra Hua", artist: "Artist Name", file: "Gehra Hua" },
+    { title: "Breathless", artist: "Shankar Mahadevan", file: "Breathless" },
+    { title: "Yeh Raaten Yeh Mausam", artist: "Kishore Kumar, Asha Bhosle", file: "Yeh Raaten Yeh Mausam" },
+    { title: "Ye Tune Kya Kiya", artist: "Javed Bashir", file: "Ye Tune Kya Kiya" },
+    { title: "Bairan", artist: "Papon", file: "Bairan" },
+    { title: "Mann Mera", artist: "Gajendra Verma", file: "Mann Mera" },
+    { title: "Gun Gun Guna Re", artist: "Sunidhi Chauhan, Udit Narayan", file: "Gun Gun Guna Re" },
+    { title: "Naach Meri Jaan", artist: "Pritam, Kamaal Khan", file: "Naach Meri Jaan" },
+    { title: "Barso Re", artist: "Shreya Ghoshal, A.R. Rahman", file: "Barso Re" },
+    { title: "Dil Dooba", artist: "Sonu Nigam, Shreya Ghoshal", file: "Dil Dooba" },
+    { title: "Arz Kiya Hai", artist: "Anuv Jain", file: "Arz Kiya Hai" },
+    { title: "Tu Hai Kahan", artist: "AUR", file: "Tu Hai Kahan" },
+    { title: "O Meri Laila", artist: "Atif Aslam, Jyotica Tangri", file: "O Meri Laila" },
+    { title: "Mere Rashke Qamar", artist: "Nusrat Fateh Ali Khan, Rahat Fateh Ali Khan", file: "Mere Rashke Qamar" },
+    { title: "Jo Tere Sang", artist: "Mustafa Ceilingwala", file: "Jo Tere Sang" },
+    { title: "Premika Ne Pyar Se", artist: "S.P. Balasubrahmanyam", file: "Premika Ne Pyar Se" }
+  ]
     
   ]
 };
