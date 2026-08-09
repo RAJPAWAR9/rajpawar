@@ -65,8 +65,8 @@ const playlist = {
   "3D Audio": [
     { title: "Dil Ka Jo Haal Hai (3D)", artist: "Abhijeet, Shreya Ghoshal", file: "Dil Ka Jo Haal Hai - Abhijeet, Shreya Ghoshal" },
     { title: "Blue Eyes (3D Remaster)", artist: "Yo Yo Honey Singh", file: "Blue Eyes - Yo Yo Honey Singh" },
-    { title: "Badtameez Dil (3D Experience)", artist: "Benny Dayal", file: "Badtameez Dil - Benny Dayal, Shefali Alvares" }
-    { title: "Aapka Naya Song", artist: "Artist Name", file: "Audio_File_Ka_Naam" }
+    { title: "Badtameez Dil (3D Experience)", artist: "Benny Dayal", file: "Badtameez Dil - Benny Dayal, Shefali Alvares" },
+    { title: "Gulabi Aankhen (Unplugged)", artist: "Sanam", file: "Gulabi Aankhen" }
   ]
 };
 
@@ -86,7 +86,6 @@ let crossfadeTime = 10;
 let crossfadeStarted = false;
 let audioCtx, analyser, srcNodeA, srcNodeB;
 
-// Strict Mobile Detector
 const IS_MOBILE = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent) || (window.innerWidth <= 768);
 
 function showToast(message) {
@@ -152,7 +151,6 @@ function updateMoodLighting(song) {
 }
 
 function initBeatSync() {
-  // Mobile devices par Web Audio API block kar diya hai taaki crackling zero ho
   if (IS_MOBILE) return;
   if (audioCtx) return;
 
@@ -178,7 +176,7 @@ function initBeatSync() {
 }
 
 function renderBeatSyncVisualizer() {
-  if (IS_MOBILE) return; // Disable visualizer on mobile
+  if (IS_MOBILE) return;
   const canvas = document.getElementById("visualizer-canvas");
   if (!canvas) return;
   const ctx = canvas.getContext("2d");
