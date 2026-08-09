@@ -80,10 +80,10 @@ let playerB = new Audio();
 let activeAudio = playerA;
 let nextAudio = playerB;
 
-let globalVolume = 0.8;
+let globalVolume = 1.0;
 let crossfadeTime = 10;
 let crossfadeStarted = false;
-let audioCtx, analyser, srcNodeA, srcNodeB;
+let audioCtx, analyser, srcNodeA, srcNodeB, gainNode;
 
 function showToast(message) {
   const container = document.getElementById('toast-container');
@@ -155,12 +155,19 @@ function initBeatSync() {
     analyser = audioCtx.createAnalyser();
     analyser.fftSize = 128;
 
+    // Mobile Sound Output Boost (Gain Node Fix)
+    gainNode = audioCtx.createGain();
+    gainNode.gain.value = 1.8; // 180% Boost for Mobile Browser Audio
+
     srcNodeA = audioCtx.createMediaElementSource(playerA);
     srcNodeB = audioCtx.createMediaElementSource(playerB);
 
     srcNodeA.connect(analyser);
     srcNodeB.connect(analyser);
-    analyser.connect(audioCtx.destination);
+    
+    analyser.connect(gainNode);
+    gainNode.connect(audioCtx.destination);
+    
     renderBeatSyncVisualizer();
   } catch (e) {}
 }
