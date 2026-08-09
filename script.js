@@ -151,9 +151,16 @@ function initBeatSync() {
   if (audioCtx) return;
   try {
     const AudioContext = window.AudioContext || window.webkitAudioContext;
-    audioCtx = new AudioContext();
+    
+    // Mobile hardware & sample rate fix (stops crackling/distortion)
+    audioCtx = new AudioContext({
+      latencyHint: 'interactive',
+      sampleRate: 44100
+    });
+
     analyser = audioCtx.createAnalyser();
-    analyser.fftSize = 128;
+    analyser.fftSize = 256; 
+    analyser.smoothingTimeConstant = 0.8;
 
     srcNodeA = audioCtx.createMediaElementSource(playerA);
     srcNodeB = audioCtx.createMediaElementSource(playerB);
@@ -161,7 +168,7 @@ function initBeatSync() {
     srcNodeA.connect(analyser);
     srcNodeB.connect(analyser);
     
-    // Pure Untouched Audio Output
+    // Pure Direct Audio Output
     analyser.connect(audioCtx.destination);
     
     renderBeatSyncVisualizer();
