@@ -1,7 +1,7 @@
 /**
  * BOOSTER V0.9 - Next-Gen Audio OS Engine
  * Integrated Password Protection + Working Queue & 10s Auto-Mix Crossfade Remix
- * Pop-up Drawer, Shortcuts, Dynamic Ambient Lighting & Toast Notifications
+ * Mobile Touch Gestures & Dynamic Responsive Control
  * Dezained by raj pawar
  */
 
@@ -87,7 +87,7 @@ let activeAudio = playerA;
 let nextAudio = playerB;
 
 let globalVolume = 0.8;
-let crossfadeTime = 10; // Default set to 10s Basic Cross-Remix
+let crossfadeTime = 10;
 let crossfadeStarted = false;
 let audioCtx, analyser, srcNodeA, srcNodeB;
 
@@ -99,9 +99,7 @@ function showToast(message) {
   toast.className = 'toast-msg';
   toast.textContent = message;
   container.appendChild(toast);
-  setTimeout(() => {
-    toast.remove();
-  }, 3000);
+  setTimeout(() => { toast.remove(); }, 3000);
 }
 
 // Password Lock System
@@ -141,7 +139,7 @@ function getActiveList() {
   return playlist[currentCategory] || playlist["Trending"];
 }
 
-// Dynamic Mood Based Ambient Glow Changing
+// Mood Based Glow Accent
 function updateMoodLighting(song) {
   const ambientGlow = document.getElementById('ambient-glow');
   if (!ambientGlow) return;
@@ -237,11 +235,8 @@ function updateQueueAndHistoryUI() {
 
   if (upnextList) {
     upnextList.innerHTML = '';
-    
-    let queueToShow = [];
-    if (customQueue.length > 0) {
-      queueToShow = customQueue;
-    } else {
+    let queueToShow = customQueue.length > 0 ? customQueue : [];
+    if (customQueue.length === 0) {
       for (let i = 1; i <= 5; i++) {
         let idx = (currentSongIndex + i) % list.length;
         if (list[idx]) queueToShow.push(list[idx]);
@@ -250,7 +245,7 @@ function updateQueueAndHistoryUI() {
 
     queueToShow.forEach((song, idx) => {
       const item = document.createElement('div');
-      item.style.cssText = "padding:10px 14px; background:rgba(255,255,255,0.03); border-radius:12px; border:1px solid var(--glass-border); display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;";
+      item.style.cssText = "padding:10px 14px; background:rgba(255,255,255,0.03); border-radius:12px; border:1px solid var(--glass-border); display:flex; justify-content:space-between; align-items:center;";
       item.innerHTML = `
         <div>
           <div style="font-size:13px; font-weight:600; color:#fff;">${song.title}</div>
@@ -269,7 +264,7 @@ function updateQueueAndHistoryUI() {
     historyList.innerHTML = '';
     songHistory.forEach((song) => {
       const item = document.createElement('div');
-      item.style.cssText = "padding:10px 14px; background:rgba(255,255,255,0.03); border-radius:12px; border:1px solid var(--glass-border); margin-bottom:6px;";
+      item.style.cssText = "padding:10px 14px; background:rgba(255,255,255,0.03); border-radius:12px; border:1px solid var(--glass-border);";
       item.innerHTML = `
         <div style="font-size:13px; font-weight:600; color:#fff;">${song.title}</div>
         <div style="font-size:11px; color:var(--text-secondary);">${song.artist}</div>
@@ -298,11 +293,7 @@ function loadAndPlaySong(songToPlay = null, isManualTrigger = true) {
   if (audioCtx && audioCtx.state === 'suspended') audioCtx.resume();
 
   const list = displayedList.length > 0 ? displayedList : getActiveList();
-  let song = songToPlay;
-
-  if (!song) {
-    song = list[currentSongIndex];
-  }
+  let song = songToPlay || list[currentSongIndex];
 
   if (!song) return;
 
@@ -311,7 +302,6 @@ function loadAndPlaySong(songToPlay = null, isManualTrigger = true) {
     if (songHistory.length > 10) songHistory.pop();
   }
 
-  // Update Mini, Main & Modal Visuals
   document.getElementById('mini-title').textContent = song.title;
   document.getElementById('mini-artist').textContent = song.artist + " • Dezained by raj pawar";
   document.getElementById('modal-title').textContent = song.title;
@@ -337,7 +327,6 @@ function loadAndPlaySong(songToPlay = null, isManualTrigger = true) {
   renderTrendingGrid();
 }
 
-// 10s Crossfade & Time Sync Handler
 function attachAudioEvents(audioPlayer) {
   audioPlayer.addEventListener('timeupdate', () => {
     if (audioPlayer === activeAudio && activeAudio.duration) {
@@ -356,7 +345,7 @@ function attachAudioEvents(audioPlayer) {
       document.getElementById('modal-time-current').textContent = formattedCurrent;
       document.getElementById('modal-time-total').textContent = formattedTotal;
 
-      // Auto-Mix 10s Cross-Remix Trigger
+      // Auto-Mix 10s Crossfade Trigger
       const timeLeft = activeAudio.duration - activeAudio.currentTime;
       if (timeLeft <= crossfadeTime && !crossfadeStarted && crossfadeTime > 0) {
         crossfadeStarted = true;
@@ -419,14 +408,14 @@ function renderTrendingGrid() {
   displayedList.forEach((song, index) => {
     const card = document.createElement('div');
     card.className = `glass-panel ${index === currentSongIndex ? 'active' : ''}`;
-    card.style.cssText = "padding:14px; border-radius:16px; cursor:pointer; margin-bottom:8px; display:flex; justify-content:space-between; align-items:center;";
+    card.style.cssText = "padding:12px 14px; border-radius:14px; cursor:pointer; display:flex; justify-content:space-between; align-items:center;";
 
     card.innerHTML = `
-      <div>
-        <div style="font-weight:700; font-size:14px; color:#fff;">${index + 1}. ${song.title}</div>
-        <div style="font-size:12px; color:var(--text-secondary); margin-top:4px;">${song.artist}</div>
+      <div style="overflow:hidden; max-width:75%;">
+        <div style="font-weight:700; font-size:13px; color:#fff; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${index + 1}. ${song.title}</div>
+        <div style="font-size:11px; color:var(--text-secondary); margin-top:2px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${song.artist}</div>
       </div>
-      <button class="add-queue-btn" style="background:rgba(255,255,255,0.06); border:1px solid var(--glass-border); color:var(--primary-glow); padding:6px 10px; border-radius:8px; cursor:pointer; font-size:11px;">+ Queue</button>
+      <button class="add-queue-btn" style="background:rgba(255,255,255,0.06); border:1px solid var(--glass-border); color:var(--primary-glow); padding:6px 10px; border-radius:8px; cursor:pointer; font-size:11px; flex-shrink:0;">+ Queue</button>
     `;
 
     card.onclick = (e) => {
@@ -450,7 +439,6 @@ document.addEventListener('DOMContentLoaded', () => {
   displayedList = getActiveList();
   renderTrendingGrid();
 
-  // Crossfade Slider Sync (Default set to 10s)
   const crossSlider = document.getElementById('crossfade-slider');
   const crossVal = document.getElementById('crossfade-val');
   if (crossSlider) {
@@ -462,7 +450,6 @@ document.addEventListener('DOMContentLoaded', () => {
     };
   }
 
-  // Pop-Up Modal Controls
   const masterBar = document.getElementById('master-player-bar');
   const playerModal = document.getElementById('player-modal');
   const modalClose = document.getElementById('modal-close-btn');
@@ -475,30 +462,22 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   if (modalClose && playerModal) {
-    modalClose.onclick = () => {
-      playerModal.classList.remove('active');
-    };
+    modalClose.onclick = () => { playerModal.classList.remove('active'); };
   }
 
-  // Mobile Touch Swipe Gesture to Dismiss
+  // Mobile Touch Swipe Gesture
   let touchStartY = 0;
   if (playerModal) {
-    playerModal.addEventListener('touchstart', (e) => {
-      touchStartY = e.touches[0].clientY;
-    });
-
+    playerModal.addEventListener('touchstart', (e) => { touchStartY = e.touches[0].clientY; });
     playerModal.addEventListener('touchend', (e) => {
       let touchEndY = e.changedTouches[0].clientY;
-      if (touchEndY - touchStartY > 100) {
-        playerModal.classList.remove('active');
-      }
+      if (touchEndY - touchStartY > 80) playerModal.classList.remove('active');
     });
   }
 
-  // Global Keyboard Shortcuts
+  // Keyboard Shortcuts
   document.addEventListener('keydown', (e) => {
     if (e.target.tagName === 'INPUT') return;
-
     if (e.code === 'Space') {
       e.preventDefault();
       document.getElementById('master-play-btn').click();
@@ -514,7 +493,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   });
 
-  // Category Filters Handler
+  // Category Filters
   const catBtns = [
     { id: 'btn-2026', cat: 'Trending' },
     { id: 'btn-90s', cat: '90s' },
@@ -563,7 +542,7 @@ document.addEventListener('DOMContentLoaded', () => {
     };
   }
 
-  // Master Volume
+  // Volume
   const volSlider = document.getElementById('master-volume');
   if (volSlider) {
     volSlider.oninput = (e) => {
@@ -572,7 +551,7 @@ document.addEventListener('DOMContentLoaded', () => {
     };
   }
 
-  // Queue vs History Tab Toggle
+  // Tabs Toggle
   const tabUpNext = document.getElementById('tab-upnext');
   const tabHistory = document.getElementById('tab-history');
   const upnextCont = document.getElementById('upnext-container');
@@ -608,7 +587,7 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   });
 
-  // Playback Control Buttons Handler
+  // Controls
   const togglePlay = () => {
     initBeatSync();
     if (audioCtx && audioCtx.state === 'suspended') audioCtx.resume();
