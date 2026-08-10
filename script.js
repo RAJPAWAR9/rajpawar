@@ -116,6 +116,49 @@ let isVibeModeEnabled = false;
 let vibeIntensity = 0.5; // Range 0 to 1
 let lastVibrationTime = 0;
 
+/**
+ * ID3 Tag Extractor: Reads Audio Metadata directly from binary track
+ */
+function extractAndDisplayMetadata(audioSrc, fallbackSong) {
+  if (window.jsmediatags && audioSrc) {
+    window.jsmediatags.read(audioSrc, {
+      onSuccess: function(tag) {
+        const tags = tag.tags;
+        const parsedTitle = tags.title || fallbackSong.title || "Unknown Track";
+        const parsedArtist = tags.artist || fallbackSong.artist || "BOOSTER Audio Engine";
+        
+        updatePlayerTrackDetails(parsedTitle, parsedArtist);
+      },
+      onError: function(error) {
+        // Fallback to playlist metadata or sanitized file name
+        let cleanTitle = fallbackSong.title || decodeURIComponent(audioSrc.split('/').pop().replace(/\.[^/.]+$/, ""));
+        let cleanArtist = fallbackSong.artist || "BOOSTER V0.9 • Designed by Raj Pawar";
+        updatePlayerTrackDetails(cleanTitle, cleanArtist);
+      }
+    });
+  } else {
+    updatePlayerTrackDetails(fallbackSong.title, fallbackSong.artist);
+  }
+}
+
+function updatePlayerTrackDetails(title, artist) {
+  const formattedArtist = artist.includes("Raj Pawar") ? artist : `${artist} • Designed by Raj Pawar`;
+
+  const miniTitle = document.getElementById('mini-title');
+  const miniArtist = document.getElementById('mini-artist');
+  const modalTitle = document.getElementById('modal-title');
+  const modalArtist = document.getElementById('modal-artist');
+  const npTitle = document.getElementById('np-title');
+  const npArtist = document.getElementById('np-artist');
+
+  if (miniTitle) miniTitle.textContent = title;
+  if (miniArtist) miniArtist.textContent = formattedArtist;
+  if (modalTitle) modalTitle.textContent = title;
+  if (modalArtist) modalArtist.textContent = formattedArtist;
+  if (npTitle) npTitle.textContent = title;
+  if (npArtist) npArtist.textContent = formattedArtist;
+}
+
 function showToast(message) {
   const container = document.getElementById('toast-container');
   if (!container) return;
@@ -243,7 +286,7 @@ function initAudioEngine() {
 
 /**
  * Direct Audio Routing Protocol:
- * If DSP is OFF: Direct Audio Source -> Analyser -> Audio Destination (Pure Studio Original sound)
+ * If DSP is OFF: Direct Audio Source -> Analyser -> Audio Destination
  * If DSP is ON: Audio Source -> Bass -> Treble -> Vibe -> EQ Bands -> Panner -> Master Gain -> Analyser -> Audio Destination
  */
 function routeAudioGraph() {
@@ -322,7 +365,7 @@ function renderBeatSyncVisualizer() {
       subBassSum += dataArray[i] || 0;
     }
     let subBassAvg = subBassBins > 0 ? subBassSum / subBassBins : 0;
-    let bassRatio = subBassAvg / 255; // 0 to 1
+    let bassRatio = subBassAvg / 255;
 
     // Dynamic Beat Glow Effect on Album Art Cards
     if (!activeAudio.paused && bassRatio > 0.1) {
@@ -348,7 +391,7 @@ function renderBeatSyncVisualizer() {
     // Dynamic Haptic Beat Vibration (Mobile Browser)
     if (isVibeModeEnabled && subBassAvg > 190 && "vibrate" in navigator) {
       const now = Date.now();
-      if (now - lastVibrationTime > 180) { // Throttle vibrations to sync with beat drops
+      if (now - lastVibrationTime > 180) {
         const duration = Math.floor(bassRatio * 60 * vibeIntensity);
         if (duration > 10) navigator.vibrate(duration);
         lastVibrationTime = now;
@@ -387,12 +430,21 @@ function renderBeatSyncVisualizer() {
 
 function playAudioWithFallback(audioElement, song) {
   if (!song) return;
-  audioElement.src = buildUrl(song, "m4a");
+  const primaryUrl = buildUrl(song, "m4a");
+  audioElement.src = primaryUrl;
+
   const playPromise = audioElement.play();
   if (playPromise !== undefined) {
-    playPromise.then(() => updatePlaybackUI(true)).catch(() => {
-      audioElement.src = buildUrl(song, "mp3");
-      audioElement.play().then(() => updatePlaybackUI(true)).catch(() => updatePlaybackUI(false));
+    playPromise.then(() => {
+      updatePlaybackUI(true);
+      extractAndDisplayMetadata(primaryUrl, song);
+    }).catch(() => {
+      const fallbackUrl = buildUrl(song, "mp3");
+      audioElement.src = fallbackUrl;
+      audioElement.play().then(() => {
+        updatePlaybackUI(true);
+        extractAndDisplayMetadata(fallbackUrl, song);
+      }).catch(() => updatePlaybackUI(false));
     });
   }
 }
@@ -470,24 +522,13 @@ function loadAndPlaySong(songToPlay = null, isManualTrigger = true) {
 
   if (!song) return;
 
-  const titleText = song.title || `Track ${currentSongIndex + 1}`;
-  const artistText = song.artist ? (song.artist + " • Designed by Raj Pawar") : "BOOSTER V0.9 • Designed by Raj Pawar";
-
   if (!songHistory.some(s => s.file === song.file)) {
     songHistory.unshift(song);
     if (songHistory.length > 10) songHistory.pop();
   }
 
-  document.getElementById('mini-title').textContent = titleText;
-  document.getElementById('mini-artist').textContent = artistText;
-  document.getElementById('modal-title').textContent = titleText;
-  document.getElementById('modal-artist').textContent = artistText;
-  
-  if (document.getElementById('np-title')) document.getElementById('np-title').textContent = titleText;
-  if (document.getElementById('np-artist')) document.getElementById('np-artist').textContent = artistText;
-
   updateMoodLighting(song);
-  showToast(`Now Playing: ${titleText}`);
+  showToast(`Now Playing: ${song.title || "Selected Song"}`);
 
   if (isManualTrigger) {
     crossfadeStarted = false;
@@ -550,19 +591,8 @@ function attachAudioEvents(audioPlayer) {
                 if (songHistory.length > 10) songHistory.pop();
               }
 
-              const nextTitle = currentSong.title || "Audio Track";
-              const nextArtist = currentSong.artist ? (currentSong.artist + " • Designed by Raj Pawar") : "BOOSTER V0.9 • Designed by Raj Pawar";
-
-              document.getElementById('mini-title').textContent = nextTitle;
-              document.getElementById('mini-artist').textContent = nextArtist;
-              document.getElementById('modal-title').textContent = nextTitle;
-              document.getElementById('modal-artist').textContent = nextArtist;
-              
-              if (document.getElementById('np-title')) document.getElementById('np-title').textContent = nextTitle;
-              if (document.getElementById('np-artist')) document.getElementById('np-artist').textContent = nextArtist;
-
               updateMoodLighting(currentSong);
-              showToast(`Now Playing: ${nextTitle}`);
+              showToast(`Now Playing: ${currentSong.title || "Track"}`);
 
               updateQueueAndHistoryUI();
               renderTrendingGrid();
@@ -636,7 +666,6 @@ function renderTrendingGrid() {
 }
 
 function bindProDspControls() {
-  // Master DSP Toggle
   const dspToggle = document.getElementById('master-dsp-toggle');
   if (dspToggle) {
     dspToggle.onchange = (e) => {
@@ -646,7 +675,6 @@ function bindProDspControls() {
     };
   }
 
-  // Extreme Vibe Mode Toggle & Slider
   const vibeToggle = document.getElementById('vibe-mode-toggle');
   const vibeSlider = document.getElementById('vibe-intensity-slider');
   const vibeDisp = document.getElementById('vibe-slider-val');
@@ -673,7 +701,6 @@ function bindProDspControls() {
     };
   }
 
-  // Bass Boost Filter
   const bassSlider = document.getElementById('bass-boost-slider');
   const bassDisp = document.getElementById('bass-boost-val');
   if (bassSlider) {
@@ -684,7 +711,6 @@ function bindProDspControls() {
     };
   }
 
-  // Treble Clarity Filter
   const trebleSlider = document.getElementById('treble-boost-slider');
   const trebleDisp = document.getElementById('treble-boost-val');
   if (trebleSlider) {
@@ -695,7 +721,6 @@ function bindProDspControls() {
     };
   }
 
-  // 3D Spatial Panner Slider
   const pannerSlider = document.getElementById('panner-slider');
   const pannerDisp = document.getElementById('panner-val');
   if (pannerSlider) {
@@ -708,7 +733,6 @@ function bindProDspControls() {
     };
   }
 
-  // 5-Band Equalizer Sliders
   const eqSliders = document.querySelectorAll('.eq-slider');
   eqSliders.forEach((slider) => {
     slider.oninput = (e) => {
@@ -724,7 +748,6 @@ function bindProDspControls() {
     };
   });
 
-  // Flat Reset Button
   const flatBtn = document.getElementById('eq-flat-btn');
   if (flatBtn) {
     flatBtn.onclick = () => {
