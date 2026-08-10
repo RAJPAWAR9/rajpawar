@@ -11,9 +11,6 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
-  
-  <!-- jsmediatags CDN Library for Audio Metadata & ID3 Parsing -->
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/jsmediatags/3.9.5/jsmediatags.min.js"></script>
 </head>
 <body data-theme="dynamic">
 
@@ -86,7 +83,7 @@
 
       <!-- View 1: Home -->
       <section id="view-home" class="view-panel active">
-        <div class="hero-card glass-panel beat-glow-target">
+        <div class="hero-card glass-panel">
           <div class="hero-content">
             <span class="hero-tag">BOOSTER SPOTLIGHT</span>
             <h1 id="hero-title">Next-Gen Audio Experience</h1>
@@ -104,10 +101,10 @@
       <section id="view-now-playing" class="view-panel">
         <div class="now-playing-layout">
           <div class="art-visual-side">
-            <div id="main-art-display" class="main-art-display beat-glow-target"></div>
+            <div id="main-art-display" class="main-art-display"></div>
             <div class="track-meta">
-              <h2 id="np-title">Audio Track Playing</h2>
-              <p id="np-artist">BOOSTER Audio Player</p>
+              <h2 id="np-title">No Track Selected</h2>
+              <p id="np-artist">Select a track from the library</p>
             </div>
           </div>
           
@@ -149,7 +146,7 @@
             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
               <div>
                 <h3 style="font-size: 16px;">EXTREME BASS & VIBE MODE</h3>
-                <p style="font-size: 11px; color: var(--text-secondary);">Deep Sub-Bass Boost & Dynamic Beat Glow Sync</p>
+                <p style="font-size: 11px; color: var(--text-secondary);">Deep Sub-Bass Boost & Dynamic Haptic Beat Sync</p>
               </div>
               <label class="switch">
                 <input type="checkbox" id="vibe-mode-toggle">
@@ -159,7 +156,7 @@
             
             <div style="margin-top: 14px;">
               <div style="display: flex; justify-content: space-between; font-size: 12px; margin-bottom: 6px;">
-                <span>Vibration & Beat Intensity</span>
+                <span>Vibration & Bass Intensity</span>
                 <span id="vibe-slider-val" style="font-family: 'JetBrains Mono', monospace; color: var(--primary-glow);">50%</span>
               </div>
               <input type="range" id="vibe-intensity-slider" min="0" max="100" value="50" style="width: 100%; accent-color: var(--primary-glow);">
@@ -258,10 +255,9 @@
   <!-- Master Player Bar -->
   <footer class="master-player-bar glass-panel" id="master-player-bar">
     <div class="player-left">
-      <div id="mini-art" class="mini-art beat-glow-target"></div>
+      <div id="mini-art" class="mini-art"></div>
       <div class="mini-info">
-        <!-- Live Song & Metadata Title Container -->
-        <span id="mini-title" class="title">Playing Audio</span>
+        <span id="mini-title" class="title">Ready to Play</span>
         <span id="mini-artist" class="artist">BOOSTER V0.9 • Designed by Raj Pawar</span>
       </div>
     </div>
@@ -294,9 +290,9 @@
   <div id="player-modal" class="player-modal glass-panel">
     <button id="modal-close-btn" class="modal-close-btn">🞃</button>
     <div class="modal-content">
-      <div id="modal-art" class="modal-art beat-glow-target"></div>
+      <div id="modal-art" class="modal-art"></div>
       <div class="modal-meta">
-        <h1 id="modal-title">Now Playing</h1>
+        <h1 id="modal-title">Ready to Play</h1>
         <p id="modal-artist">BOOSTER V0.9 • Designed by Raj Pawar</p>
       </div>
 
