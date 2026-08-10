@@ -1,5 +1,5 @@
 /**
- * BOOSTER V0.9 - Next-Gen Audio OS Engine & Pro DSP Suite
+ * BOOSTER V0.9 - Next-Gen Audio OS Engine & Beat Reactive Suite
  * Designed by Raj Pawar
  */
 
@@ -150,6 +150,7 @@ function initPasswordLock() {
 }
 
 function buildUrl(song, extension = "m4a") {
+  if (!song || !song.file) return "";
   const is90s = playlist["90s"].some(s => s.file === song.file);
   const basePath = is90s ? BASE_FOLDER_90S : BASE_FOLDER_2026;
   return `${basePath}/${song.file}.${extension}`.split('/').map(part => encodeURIComponent(part)).join('/');
@@ -166,8 +167,8 @@ function updateMoodLighting(song) {
   const ambientGlow = document.getElementById('ambient-glow');
   if (!ambientGlow) return;
 
-  const is90s = playlist["90s"].some(s => s.file === song.file);
-  const is3D = playlist["3D Audio"].some(s => s.file === song.file);
+  const is90s = song && playlist["90s"].some(s => s.file === song.file);
+  const is3D = song && playlist["3D Audio"].some(s => s.file === song.file);
 
   if (is90s) {
     ambientGlow.style.background = 'radial-gradient(circle, rgba(255, 170, 0, 0.2) 0%, rgba(255, 85, 0, 0.15) 40%, rgba(0,0,0,0) 70%)';
@@ -189,7 +190,7 @@ function initAudioEngine() {
     audioCtx = new AudioContextClass();
 
     analyser = audioCtx.createAnalyser();
-    analyser.fftSize = 512;
+    analyser.fftSize = 256;
 
     srcNodeA = audioCtx.createMediaElementSource(playerA);
     srcNodeB = audioCtx.createMediaElementSource(playerB);
@@ -258,7 +259,8 @@ function routeAudioGraph() {
     analyser.disconnect();
     analyser.connect(audioCtx.destination);
     
-    document.getElementById('dsp-status-desc').textContent = "Status: Pure Direct Studio Bypass (0% Quality Loss)";
+    const desc = document.getElementById('dsp-status-desc');
+    if (desc) desc.textContent = "Status: Pure Direct Studio Bypass (0% Quality Loss)";
   } else {
     // DSP Pipeline Active Connection
     srcNodeA.connect(bassFilterNode);
@@ -286,19 +288,20 @@ function routeAudioGraph() {
     analyser.disconnect();
     analyser.connect(audioCtx.destination);
 
-    document.getElementById('dsp-status-desc').textContent = "Status: Pro Audio DSP & Extreme Vibe Active";
+    const desc = document.getElementById('dsp-status-desc');
+    if (desc) desc.textContent = "Status: Pro Audio DSP & Extreme Vibe Active";
   }
 }
 
 /**
- * Dynamic Haptic Sync & Audio Visualizer Frame Loop
+ * Dynamic Beat Glow & Audio Visualizer Frame Loop
  */
 function renderBeatSyncVisualizer() {
   const canvas = document.getElementById("visualizer-canvas");
-  if (!canvas) return;
-  const ctx = canvas.getContext("2d");
+  const glowTargets = document.querySelectorAll('.beat-glow-target');
 
   function resize() {
+    if (!canvas) return;
     canvas.width = window.innerWidth;
     canvas.height = window.innerHeight;
   }
@@ -312,51 +315,78 @@ function renderBeatSyncVisualizer() {
     requestAnimationFrame(renderFrame);
     if (analyser) analyser.getByteFrequencyData(dataArray);
 
-    // Sub-Bass Analysis (<100Hz)
+    // Sub-Bass Analysis (<150Hz)
     let subBassSum = 0;
-    const subBassBins = Math.min(10, bufferLength);
+    const subBassBins = Math.min(8, bufferLength);
     for (let i = 0; i < subBassBins; i++) {
       subBassSum += dataArray[i] || 0;
     }
     let subBassAvg = subBassBins > 0 ? subBassSum / subBassBins : 0;
+    let bassRatio = subBassAvg / 255; // 0 to 1
+
+    // Dynamic Beat Glow Effect on Album Art Cards
+    if (!activeAudio.paused && bassRatio > 0.1) {
+      let glowRadius = 15 + bassRatio * 50;
+      let glowOpacity = 0.25 + bassRatio * 0.75;
+      let scaleVal = 1 + bassRatio * 0.03;
+
+      glowTargets.forEach(el => {
+        if (el) {
+          el.style.boxShadow = `0 0 ${glowRadius}px rgba(0, 242, 254, ${glowOpacity}), 0 0 ${glowRadius * 1.5}px rgba(107, 17, 255, ${glowOpacity * 0.6})`;
+          el.style.transform = `scale(${scaleVal})`;
+        }
+      });
+    } else {
+      glowTargets.forEach(el => {
+        if (el) {
+          el.style.boxShadow = `0 0 20px rgba(0, 242, 254, 0.2)`;
+          el.style.transform = `scale(1)`;
+        }
+      });
+    }
 
     // Dynamic Haptic Beat Vibration (Mobile Browser)
     if (isVibeModeEnabled && subBassAvg > 190 && "vibrate" in navigator) {
       const now = Date.now();
       if (now - lastVibrationTime > 180) { // Throttle vibrations to sync with beat drops
-        const duration = Math.floor((subBassAvg / 255) * 60 * vibeIntensity);
+        const duration = Math.floor(bassRatio * 60 * vibeIntensity);
         if (duration > 10) navigator.vibrate(duration);
         lastVibrationTime = now;
       }
     }
 
-    // Dynamic Visualizer Pulse and Canvas Glow
+    // Dynamic Ambient Glow Pulse
     const ambientGlow = document.getElementById("ambient-glow");
     if (ambientGlow && !activeAudio.paused) {
-      const scaleVal = 1 + (subBassAvg / 255) * 0.25;
+      const scaleVal = 1 + bassRatio * 0.25;
       ambientGlow.style.transform = `translate(-50%, -50%) scale(${scaleVal})`;
     }
 
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
-    if (!activeAudio.paused && analyser) {
-      let radius = 80 + (subBassAvg / 255) * 350;
-      let gradient = ctx.createRadialGradient(
-        canvas.width / 2, canvas.height / 2, 10,
-        canvas.width / 2, canvas.height / 2, Math.max(radius, 20)
-      );
-      
-      const dynamicHue = (Date.now() / 20 + subBassAvg) % 360;
-      gradient.addColorStop(0, `hsla(${dynamicHue}, 100%, 50%, ${0.15 + (subBassAvg/255) * 0.25})`);
-      gradient.addColorStop(1, 'rgba(0,0,0,0)');
-      
-      ctx.fillStyle = gradient;
-      ctx.fillRect(0, 0, canvas.width, canvas.height);
+    // Canvas Radial Beat Visualizer
+    if (canvas) {
+      const ctx = canvas.getContext("2d");
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      if (!activeAudio.paused && analyser) {
+        let radius = 80 + bassRatio * 350;
+        let gradient = ctx.createRadialGradient(
+          canvas.width / 2, canvas.height / 2, 10,
+          canvas.width / 2, canvas.height / 2, Math.max(radius, 20)
+        );
+        
+        const dynamicHue = (Date.now() / 20 + subBassAvg) % 360;
+        gradient.addColorStop(0, `hsla(${dynamicHue}, 100%, 50%, ${0.15 + bassRatio * 0.25})`);
+        gradient.addColorStop(1, 'rgba(0,0,0,0)');
+        
+        ctx.fillStyle = gradient;
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+      }
     }
   }
   renderFrame();
 }
 
 function playAudioWithFallback(audioElement, song) {
+  if (!song) return;
   audioElement.src = buildUrl(song, "m4a");
   const playPromise = audioElement.play();
   if (playPromise !== undefined) {
@@ -383,12 +413,14 @@ function updateQueueAndHistoryUI() {
     }
 
     queueToShow.forEach((song, idx) => {
+      const titleText = song.title || `Track ${idx + 1}`;
+      const artistText = song.artist || "BOOSTER Audio";
       const item = document.createElement('div');
       item.style.cssText = "padding:10px 14px; background:rgba(255,255,255,0.03); border-radius:12px; border:1px solid var(--glass-border); display:flex; justify-content:space-between; align-items:center;";
       item.innerHTML = `
         <div>
-          <div style="font-size:13px; font-weight:600; color:#fff;">${song.title}</div>
-          <div style="font-size:11px; color:var(--text-secondary);">${song.artist}</div>
+          <div style="font-size:13px; font-weight:600; color:#fff;">${titleText}</div>
+          <div style="font-size:11px; color:var(--text-secondary);">${artistText}</div>
         </div>
         <div style="display:flex; align-items:center; gap:8px;">
           <span style="font-size:11px; color:var(--primary-glow);">#${idx + 1}</span>
@@ -401,12 +433,14 @@ function updateQueueAndHistoryUI() {
 
   if (historyList) {
     historyList.innerHTML = '';
-    songHistory.forEach((song) => {
+    songHistory.forEach((song, idx) => {
+      const titleText = song.title || `Track ${idx + 1}`;
+      const artistText = song.artist || "BOOSTER Audio";
       const item = document.createElement('div');
       item.style.cssText = "padding:10px 14px; background:rgba(255,255,255,0.03); border-radius:12px; border:1px solid var(--glass-border);";
       item.innerHTML = `
-        <div style="font-size:13px; font-weight:600; color:#fff;">${song.title}</div>
-        <div style="font-size:11px; color:var(--text-secondary);">${song.artist}</div>
+        <div style="font-size:13px; font-weight:600; color:#fff;">${titleText}</div>
+        <div style="font-size:11px; color:var(--text-secondary);">${artistText}</div>
       `;
       historyList.appendChild(item);
     });
@@ -436,21 +470,24 @@ function loadAndPlaySong(songToPlay = null, isManualTrigger = true) {
 
   if (!song) return;
 
+  const titleText = song.title || `Track ${currentSongIndex + 1}`;
+  const artistText = song.artist ? (song.artist + " • Designed by Raj Pawar") : "BOOSTER V0.9 • Designed by Raj Pawar";
+
   if (!songHistory.some(s => s.file === song.file)) {
     songHistory.unshift(song);
     if (songHistory.length > 10) songHistory.pop();
   }
 
-  document.getElementById('mini-title').textContent = song.title;
-  document.getElementById('mini-artist').textContent = song.artist + " • Designed by Raj Pawar";
-  document.getElementById('modal-title').textContent = song.title;
-  document.getElementById('modal-artist').textContent = song.artist + " • Designed by Raj Pawar";
+  document.getElementById('mini-title').textContent = titleText;
+  document.getElementById('mini-artist').textContent = artistText;
+  document.getElementById('modal-title').textContent = titleText;
+  document.getElementById('modal-artist').textContent = artistText;
   
-  if (document.getElementById('np-title')) document.getElementById('np-title').textContent = song.title;
-  if (document.getElementById('np-artist')) document.getElementById('np-artist').textContent = song.artist + " • Designed by Raj Pawar";
+  if (document.getElementById('np-title')) document.getElementById('np-title').textContent = titleText;
+  if (document.getElementById('np-artist')) document.getElementById('np-artist').textContent = artistText;
 
   updateMoodLighting(song);
-  showToast(`Now Playing: ${song.title}`);
+  showToast(`Now Playing: ${titleText}`);
 
   if (isManualTrigger) {
     crossfadeStarted = false;
@@ -513,16 +550,19 @@ function attachAudioEvents(audioPlayer) {
                 if (songHistory.length > 10) songHistory.pop();
               }
 
-              document.getElementById('mini-title').textContent = currentSong.title;
-              document.getElementById('mini-artist').textContent = currentSong.artist + " • Designed by Raj Pawar";
-              document.getElementById('modal-title').textContent = currentSong.title;
-              document.getElementById('modal-artist').textContent = currentSong.artist + " • Designed by Raj Pawar";
+              const nextTitle = currentSong.title || "Audio Track";
+              const nextArtist = currentSong.artist ? (currentSong.artist + " • Designed by Raj Pawar") : "BOOSTER V0.9 • Designed by Raj Pawar";
+
+              document.getElementById('mini-title').textContent = nextTitle;
+              document.getElementById('mini-artist').textContent = nextArtist;
+              document.getElementById('modal-title').textContent = nextTitle;
+              document.getElementById('modal-artist').textContent = nextArtist;
               
-              if (document.getElementById('np-title')) document.getElementById('np-title').textContent = currentSong.title;
-              if (document.getElementById('np-artist')) document.getElementById('np-artist').textContent = currentSong.artist + " • Designed by Raj Pawar";
+              if (document.getElementById('np-title')) document.getElementById('np-title').textContent = nextTitle;
+              if (document.getElementById('np-artist')) document.getElementById('np-artist').textContent = nextArtist;
 
               updateMoodLighting(currentSong);
-              showToast(`Now Playing: ${currentSong.title}`);
+              showToast(`Now Playing: ${nextTitle}`);
 
               updateQueueAndHistoryUI();
               renderTrendingGrid();
@@ -568,10 +608,13 @@ function renderTrendingGrid() {
     card.className = `glass-panel ${index === currentSongIndex ? 'active' : ''}`;
     card.style.cssText = "padding:12px 14px; border-radius:14px; cursor:pointer; display:flex; justify-content:space-between; align-items:center;";
 
+    const displayTitle = song.title || `Track ${index + 1}`;
+    const displayArtist = song.artist || "BOOSTER Audio";
+
     card.innerHTML = `
       <div style="overflow:hidden; max-width:75%;">
-        <div style="font-weight:700; font-size:13px; color:#fff; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${index + 1}. ${song.title}</div>
-        <div style="font-size:11px; color:var(--text-secondary); margin-top:2px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${song.artist}</div>
+        <div style="font-weight:700; font-size:13px; color:#fff; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${index + 1}. ${displayTitle}</div>
+        <div style="font-size:11px; color:var(--text-secondary); margin-top:2px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${displayArtist}</div>
       </div>
       <button class="add-queue-btn" style="background:rgba(255,255,255,0.06); border:1px solid var(--glass-border); color:var(--primary-glow); padding:6px 10px; border-radius:8px; cursor:pointer; font-size:11px; flex-shrink:0;">+ Queue</button>
     `;
@@ -581,7 +624,7 @@ function renderTrendingGrid() {
         e.stopPropagation();
         customQueue.push(song);
         updateQueueAndHistoryUI();
-        showToast(`Added to Queue: ${song.title}`);
+        showToast(`Added to Queue: ${displayTitle}`);
         return;
       }
       currentSongIndex = index;
@@ -615,7 +658,7 @@ function bindProDspControls() {
         vibeBassNode.gain.value = isVibeModeEnabled ? (vibeIntensity * 12) : 0;
       }
       routeAudioGraph();
-      showToast(isVibeModeEnabled ? "Extreme Bass & Vibe ON" : "Extreme Vibe OFF");
+      showToast(isVibeModeEnabled ? "Extreme Bass & Beat Glow ON" : "Extreme Vibe OFF");
     };
   }
 
@@ -625,7 +668,7 @@ function bindProDspControls() {
       vibeIntensity = val / 100;
       if (vibeDisp) vibeDisp.textContent = `${val}%`;
       if (vibeBassNode && isVibeModeEnabled) {
-        vibeBassNode.gain.value = vibeIntensity * 12; // Dynamic low-end boost up to 12dB
+        vibeBassNode.gain.value = vibeIntensity * 12;
       }
     };
   }
@@ -802,7 +845,8 @@ document.addEventListener('DOMContentLoaded', () => {
       const query = e.target.value.toLowerCase().trim();
       const fullList = getActiveList();
       displayedList = fullList.filter(s => 
-        s.title.toLowerCase().includes(query) || s.artist.toLowerCase().includes(query)
+        (s.title && s.title.toLowerCase().includes(query)) || 
+        (s.artist && s.artist.toLowerCase().includes(query))
       );
       renderTrendingGrid();
     };
