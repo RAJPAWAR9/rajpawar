@@ -241,9 +241,7 @@ function initAudioEngine() {
 }
 
 /**
- * Direct Audio Routing Protocol:
- * If DSP is OFF: Direct Audio Source -> Analyser -> Audio Destination (Pure Studio Original sound)
- * If DSP is ON: Audio Source -> Bass -> Treble -> Vibe -> EQ Bands -> Panner -> Master Gain -> Analyser -> Audio Destination
+ * Direct Audio Routing Protocol
  */
 function routeAudioGraph() {
   if (!audioCtx) return;
@@ -252,7 +250,6 @@ function routeAudioGraph() {
   srcNodeB.disconnect();
 
   if (!isDspEnabled && !isVibeModeEnabled) {
-    // Zero Loss Master Direct Bypass Connection
     srcNodeA.connect(analyser);
     srcNodeB.connect(analyser);
     analyser.disconnect();
@@ -260,7 +257,6 @@ function routeAudioGraph() {
     
     document.getElementById('dsp-status-desc').textContent = "Status: Pure Direct Studio Bypass (0% Quality Loss)";
   } else {
-    // DSP Pipeline Active Connection
     srcNodeA.connect(bassFilterNode);
     srcNodeB.connect(bassFilterNode);
 
@@ -312,7 +308,6 @@ function renderBeatSyncVisualizer() {
     requestAnimationFrame(renderFrame);
     if (analyser) analyser.getByteFrequencyData(dataArray);
 
-    // Sub-Bass Analysis (<100Hz)
     let subBassSum = 0;
     const subBassBins = Math.min(10, bufferLength);
     for (let i = 0; i < subBassBins; i++) {
@@ -320,17 +315,15 @@ function renderBeatSyncVisualizer() {
     }
     let subBassAvg = subBassBins > 0 ? subBassSum / subBassBins : 0;
 
-    // Dynamic Haptic Beat Vibration (Mobile Browser)
     if (isVibeModeEnabled && subBassAvg > 190 && "vibrate" in navigator) {
       const now = Date.now();
-      if (now - lastVibrationTime > 180) { // Throttle vibrations to sync with beat drops
+      if (now - lastVibrationTime > 180) {
         const duration = Math.floor((subBassAvg / 255) * 60 * vibeIntensity);
         if (duration > 10) navigator.vibrate(duration);
         lastVibrationTime = now;
       }
     }
 
-    // Dynamic Visualizer Pulse and Canvas Glow
     const ambientGlow = document.getElementById("ambient-glow");
     if (ambientGlow && !activeAudio.paused) {
       const scaleVal = 1 + (subBassAvg / 255) * 0.25;
@@ -440,6 +433,17 @@ function loadAndPlaySong(songToPlay = null, isManualTrigger = true) {
     songHistory.unshift(song);
     if (songHistory.length > 10) songHistory.pop();
   }
+
+  // Cover Image Logic: If song has cover art use it, else default fallback
+  const coverUrl = song.cover || 'https://images.unsplash.com/photo-1614613535308-eb5fbd3d2c17?q=80&w=800&auto=format&fit=crop';
+
+  const mainArt = document.getElementById('main-art-display');
+  const modalArt = document.getElementById('modal-art');
+  const miniArt = document.getElementById('mini-art');
+
+  if (mainArt) mainArt.style.backgroundImage = `url('${coverUrl}')`;
+  if (modalArt) modalArt.style.backgroundImage = `url('${coverUrl}')`;
+  if (miniArt) miniArt.style.backgroundImage = `url('${coverUrl}')`;
 
   document.getElementById('mini-title').textContent = song.title;
   document.getElementById('mini-artist').textContent = song.artist + " • Designed by Raj Pawar";
@@ -593,7 +597,6 @@ function renderTrendingGrid() {
 }
 
 function bindProDspControls() {
-  // Master DSP Toggle
   const dspToggle = document.getElementById('master-dsp-toggle');
   if (dspToggle) {
     dspToggle.onchange = (e) => {
@@ -603,7 +606,6 @@ function bindProDspControls() {
     };
   }
 
-  // Extreme Vibe Mode Toggle & Slider
   const vibeToggle = document.getElementById('vibe-mode-toggle');
   const vibeSlider = document.getElementById('vibe-intensity-slider');
   const vibeDisp = document.getElementById('vibe-slider-val');
@@ -625,12 +627,11 @@ function bindProDspControls() {
       vibeIntensity = val / 100;
       if (vibeDisp) vibeDisp.textContent = `${val}%`;
       if (vibeBassNode && isVibeModeEnabled) {
-        vibeBassNode.gain.value = vibeIntensity * 12; // Dynamic low-end boost up to 12dB
+        vibeBassNode.gain.value = vibeIntensity * 12;
       }
     };
   }
 
-  // Bass Boost Filter
   const bassSlider = document.getElementById('bass-boost-slider');
   const bassDisp = document.getElementById('bass-boost-val');
   if (bassSlider) {
@@ -641,7 +642,6 @@ function bindProDspControls() {
     };
   }
 
-  // Treble Clarity Filter
   const trebleSlider = document.getElementById('treble-boost-slider');
   const trebleDisp = document.getElementById('treble-boost-val');
   if (trebleSlider) {
@@ -652,7 +652,6 @@ function bindProDspControls() {
     };
   }
 
-  // 3D Spatial Panner Slider
   const pannerSlider = document.getElementById('panner-slider');
   const pannerDisp = document.getElementById('panner-val');
   if (pannerSlider) {
@@ -665,7 +664,6 @@ function bindProDspControls() {
     };
   }
 
-  // 5-Band Equalizer Sliders
   const eqSliders = document.querySelectorAll('.eq-slider');
   eqSliders.forEach((slider) => {
     slider.oninput = (e) => {
@@ -681,7 +679,6 @@ function bindProDspControls() {
     };
   });
 
-  // Flat Reset Button
   const flatBtn = document.getElementById('eq-flat-btn');
   if (flatBtn) {
     flatBtn.onclick = () => {
