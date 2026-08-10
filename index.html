@@ -2,11 +2,11 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
   <meta name="theme-color" content="#030407">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-  <title>BOOSTER V0.9 - Next-Gen Audio OS</title>
+  <title>BOOSTER V0.9 — Next-Gen Audio OS</title>
   <link rel="stylesheet" href="style.css">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -14,31 +14,33 @@
 </head>
 <body data-theme="dynamic">
 
-  <!-- Toast Notification Container -->
-  <div id="toast-container" class="toast-container"></div>
+  <div id="toast-container" class="toast-container" aria-live="polite"></div>
 
-  <!-- Password Security Lock Overlay -->
+  <!-- Password Lock -->
   <div id="lock-screen" class="lock-overlay">
     <div class="lock-card glass-panel">
       <div class="brand-logo" style="margin: 0 auto 16px auto;"></div>
       <h2>BOOSTER V0.9</h2>
       <p style="color: var(--text-secondary); font-size: 13px; margin-top: 4px;">Designed by Raj Pawar</p>
-      
+
       <div class="lock-input-group" style="margin-top: 24px;">
-        <input type="password" id="access-pass" placeholder="Enter Security Password">
+        <div class="pass-field-wrap">
+          <input type="password" id="access-pass" placeholder="Enter Security Password" autocomplete="off">
+          <button type="button" id="toggle-pass-visibility" aria-label="Show password">👁</button>
+        </div>
+        <label class="remember-row">
+          <input type="checkbox" id="remember-me"> Keep this device unlocked
+        </label>
         <button id="unlock-btn">UNLOCK</button>
       </div>
       <p id="lock-error" style="color: #ff0055; font-size: 12px; margin-top: 10px; display: none;">Invalid Password! Try again.</p>
     </div>
   </div>
 
-  <!-- Background Layer -->
   <div id="ambient-glow" class="ambient-glow"></div>
-  <canvas id="visualizer-canvas"></canvas>
+  <canvas id="visualizer-canvas" aria-hidden="true"></canvas>
 
   <div class="app-shell">
-    
-    <!-- Sidebar -->
     <aside class="sidebar glass-panel">
       <div class="brand">
         <div class="brand-logo"></div>
@@ -46,213 +48,154 @@
       </div>
 
       <nav class="nav-routes">
-        <button class="nav-item active" data-target="view-home">
-          <span class="icon">🏠</span> <span>Home</span>
-        </button>
-        <button class="nav-item" data-target="view-now-playing">
-          <span class="icon">📝</span> <span>Now Playing & Queue</span>
-        </button>
-        <button class="nav-item" data-target="view-pro-audio">
-          <span class="icon">🎛️</span> <span>Pro DSP & Vibe</span>
-        </button>
+        <button class="nav-item active" data-target="view-home"><span class="icon">🏠</span><span>Home</span></button>
+        <button class="nav-item" data-target="view-now-playing"><span class="icon">🎧</span><span>Now Playing & Queue</span></button>
+        <button class="nav-item" data-target="view-pro-audio"><span class="icon">🎛️</span><span>Pro DSP & Vibe</span></button>
+        <button class="nav-item" id="tv-mode-toggle"><span class="icon">📺</span><span>TV Mode</span></button>
       </nav>
 
       <div class="sidebar-footer">
         <div class="designer-badge">Designed by Raj Pawar</div>
-        <div class="badge-status">
-          <span class="dot live"></span> Audio Engine: 96kHz / 24-bit
-        </div>
+        <div class="badge-status"><span class="dot live"></span> Audio Engine: 96kHz / 24-bit</div>
       </div>
     </aside>
 
-    <!-- Content Engine -->
     <main class="content-viewport">
-      
       <header class="top-header">
         <div class="search-bar-container">
           <input type="text" id="global-search" placeholder="Search song, artist, mood...">
         </div>
-
         <div class="category-filters">
           <button class="filter-chip cat-btn active" id="btn-2026">Trending</button>
           <button class="filter-chip cat-btn" id="btn-90s">90s</button>
           <button class="filter-chip cat-btn" id="btn-3d">3D Audio</button>
+          <button class="filter-chip cat-btn" id="btn-favorites">❤ Favorites</button>
           <button class="filter-chip cat-btn" id="btn-all">All</button>
         </div>
       </header>
 
-      <!-- View 1: Home -->
       <section id="view-home" class="view-panel active">
         <div class="hero-card glass-panel beat-glow-target">
           <div class="hero-content">
             <span class="hero-tag">BOOSTER SPOTLIGHT</span>
             <h1 id="hero-title">Next-Gen Audio Experience</h1>
             <p id="hero-artist">High-fidelity web playback • Designed by Raj Pawar</p>
+            <button id="hero-resume-btn" class="hero-resume-btn" style="display:none;">▶ Resume Listening</button>
           </div>
         </div>
 
         <div class="section-container">
           <h2 style="margin-bottom: 12px; font-size: 18px;">Track Library</h2>
-          <div id="trending-grid" class="cards-grid transition-fade"></div>
+          <div id="trending-grid" class="cards-grid transition-fade" role="list"></div>
+          <p id="no-results-msg" style="display:none; color:var(--text-secondary); font-size:13px; padding:24px; text-align:center;">No tracks found. Try a different search.</p>
         </div>
       </section>
 
-      <!-- View 2: Queue & History View -->
       <section id="view-now-playing" class="view-panel">
         <div class="now-playing-layout">
           <div class="art-visual-side">
             <div id="main-art-display" class="main-art-display beat-glow-target"></div>
+            <canvas id="spectrum-canvas" height="60"></canvas>
             <div class="track-meta">
               <h2 id="np-title">Audio Track Playing</h2>
               <p id="np-artist">BOOSTER Audio Player</p>
             </div>
           </div>
-          
-          <div class="queue-side glass-panel" style="padding: 20px; border-radius: 20px;">
-            <div class="tab-controls" style="display: flex; gap: 12px; margin-bottom: 16px; border-bottom: 1px solid var(--glass-border); padding-bottom: 10px;">
+
+          <div class="queue-side glass-panel">
+            <div class="tab-controls">
               <button class="queue-tab active" id="tab-upnext">Up Next Queue</button>
               <button class="queue-tab" id="tab-history">Recently Played</button>
             </div>
-
             <div id="upnext-container" class="queue-tab-content">
-              <div id="upnext-list" style="display: flex; flex-direction: column; gap: 8px; max-height: 350px; overflow-y: auto;"></div>
+              <div id="upnext-list" class="queue-list"></div>
             </div>
-
-            <div id="history-container" class="queue-tab-content" style="display: none;">
-              <div id="history-list" style="display: flex; flex-direction: column; gap: 8px; max-height: 350px; overflow-y: auto;"></div>
+            <div id="history-container" class="queue-tab-content" style="display:none;">
+              <div id="history-list" class="queue-list"></div>
             </div>
           </div>
         </div>
       </section>
 
-      <!-- View 3: Pro Audio DSP & Extreme Vibe Suite -->
       <section id="view-pro-audio" class="view-panel">
-        <div class="dsp-grid" style="display: flex; flex-direction: column; gap: 20px;">
-          
-          <!-- Master DSP Switch & Bypass Indicator -->
-          <div class="glass-panel" style="padding: 20px; border-radius: 20px; display: flex; justify-content: space-between; align-items: center;">
+        <div class="dsp-grid">
+          <div class="glass-panel dsp-card dsp-row">
             <div>
               <h2 style="font-size: 18px;">Master DSP Engine</h2>
               <p style="font-size: 12px; color: var(--text-secondary); margin-top: 4px;" id="dsp-status-desc">Status: Pure Direct Studio Bypass (0% Quality Loss)</p>
             </div>
-            <label class="switch">
-              <input type="checkbox" id="master-dsp-toggle">
-              <span class="slider round"></span>
-            </label>
+            <label class="switch"><input type="checkbox" id="master-dsp-toggle"><span class="slider round"></span></label>
           </div>
 
-          <!-- Section 1: Extreme Bass & Vibe Mode -->
-          <div class="glass-panel" style="padding: 20px; border-radius: 20px;">
-            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+          <div class="glass-panel dsp-card">
+            <div class="dsp-row" style="margin-bottom: 12px;">
               <div>
                 <h3 style="font-size: 16px;">EXTREME BASS & VIBE MODE</h3>
                 <p style="font-size: 11px; color: var(--text-secondary);">Deep Sub-Bass Boost & Dynamic Beat Glow Sync</p>
               </div>
-              <label class="switch">
-                <input type="checkbox" id="vibe-mode-toggle">
-                <span class="slider round"></span>
-              </label>
+              <label class="switch"><input type="checkbox" id="vibe-mode-toggle"><span class="slider round"></span></label>
             </div>
-            
-            <div style="margin-top: 14px;">
-              <div style="display: flex; justify-content: space-between; font-size: 12px; margin-bottom: 6px;">
-                <span>Vibration & Beat Intensity</span>
-                <span id="vibe-slider-val" style="font-family: 'JetBrains Mono', monospace; color: var(--primary-glow);">50%</span>
-              </div>
-              <input type="range" id="vibe-intensity-slider" min="0" max="100" value="50" style="width: 100%; accent-color: var(--primary-glow);">
+            <div class="slider-block">
+              <div class="slider-label-row"><span>Vibration & Beat Intensity</span><span id="vibe-slider-val" class="mono-val">50%</span></div>
+              <input type="range" id="vibe-intensity-slider" min="0" max="100" value="50">
             </div>
           </div>
 
-          <!-- Section 2: Quick Mix Controls -->
-          <div class="glass-panel" style="padding: 20px; border-radius: 20px;">
+          <div class="glass-panel dsp-card">
             <h3 style="font-size: 16px; margin-bottom: 16px;">Quick Tone Filters</h3>
-            
-            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px;">
-              <div>
-                <div style="display: flex; justify-content: space-between; font-size: 12px; margin-bottom: 6px;">
-                  <span>Bass Boost Filter</span>
-                  <span id="bass-boost-val" style="font-family: 'JetBrains Mono', monospace; color: var(--primary-glow);">0 dB</span>
-                </div>
-                <input type="range" id="bass-boost-slider" min="0" max="12" step="0.5" value="0" style="width: 100%; accent-color: var(--primary-glow);">
+            <div class="two-col-grid">
+              <div class="slider-block">
+                <div class="slider-label-row"><span>Bass Boost Filter</span><span id="bass-boost-val" class="mono-val">0 dB</span></div>
+                <input type="range" id="bass-boost-slider" min="0" max="12" step="0.5" value="0">
               </div>
-
-              <div>
-                <div style="display: flex; justify-content: space-between; font-size: 12px; margin-bottom: 6px;">
-                  <span>Treble Clarity Filter</span>
-                  <span id="treble-boost-val" style="font-family: 'JetBrains Mono', monospace; color: var(--primary-glow);">0 dB</span>
-                </div>
-                <input type="range" id="treble-boost-slider" min="0" max="12" step="0.5" value="0" style="width: 100%; accent-color: var(--primary-glow);">
+              <div class="slider-block">
+                <div class="slider-label-row"><span>Treble Clarity Filter</span><span id="treble-boost-val" class="mono-val">0 dB</span></div>
+                <input type="range" id="treble-boost-slider" min="0" max="12" step="0.5" value="0">
               </div>
             </div>
-
-            <div style="margin-top: 20px;">
-              <div style="display: flex; justify-content: space-between; font-size: 12px; margin-bottom: 6px;">
-                <span>3D Spatial Stereo Panner</span>
-                <span id="panner-val" style="font-family: 'JetBrains Mono', monospace; color: var(--primary-glow);">Center (0.0)</span>
-              </div>
-              <input type="range" id="panner-slider" min="-1" max="1" step="0.05" value="0" style="width: 100%; accent-color: var(--primary-glow);">
-              <div style="display: flex; justify-content: space-between; font-size: 10px; color: var(--text-secondary); margin-top: 4px;">
-                <span>Left</span>
-                <span>Center</span>
-                <span>Right</span>
-              </div>
+            <div class="slider-block" style="margin-top: 20px;">
+              <div class="slider-label-row"><span>3D Spatial Stereo Panner</span><span id="panner-val" class="mono-val">Center (0.0)</span></div>
+              <input type="range" id="panner-slider" min="-1" max="1" step="0.05" value="0">
+              <div class="pan-labels"><span>Left</span><span>Center</span><span>Right</span></div>
             </div>
           </div>
 
-          <!-- Section 3: 5-Band Equalizer -->
-          <div class="glass-panel" style="padding: 20px; border-radius: 20px;">
-            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+          <div class="glass-panel dsp-card">
+            <div class="dsp-row" style="margin-bottom: 20px;">
               <h3 style="font-size: 16px;">5-Band Pro Equalizer</h3>
-              <button id="eq-flat-btn" style="background: rgba(255,255,255,0.08); border: 1px solid var(--glass-border); color: #fff; padding: 6px 14px; border-radius: 8px; cursor: pointer; font-size: 12px; font-weight: 600;">Flat Reset</button>
+              <button id="eq-flat-btn" class="flat-btn">Flat Reset</button>
             </div>
-
-            <div class="eq-bands-container" style="display: grid; grid-template-columns: repeat(5, 1fr); gap: 12px; text-align: center;">
-              <div>
-                <span style="font-size: 10px; color: var(--text-secondary); display: block; margin-bottom: 8px;">60Hz<br>(Sub-Bass)</span>
-                <input type="range" class="eq-slider" data-band="0" min="-12" max="12" step="0.5" value="0" style="writing-mode: bt-lr; -webkit-appearance: slider-vertical; height: 120px; width: 100%;">
-                <span class="eq-val" style="font-size: 10px; font-family: 'JetBrains Mono', monospace; display: block; margin-top: 6px;">0dB</span>
-              </div>
-
-              <div>
-                <span style="font-size: 10px; color: var(--text-secondary); display: block; margin-bottom: 8px;">230Hz<br>(Warmth)</span>
-                <input type="range" class="eq-slider" data-band="1" min="-12" max="12" step="0.5" value="0" style="writing-mode: bt-lr; -webkit-appearance: slider-vertical; height: 120px; width: 100%;">
-                <span class="eq-val" style="font-size: 10px; font-family: 'JetBrains Mono', monospace; display: block; margin-top: 6px;">0dB</span>
-              </div>
-
-              <div>
-                <span style="font-size: 10px; color: var(--text-secondary); display: block; margin-bottom: 8px;">910Hz<br>(Vocals)</span>
-                <input type="range" class="eq-slider" data-band="2" min="-12" max="12" step="0.5" value="0" style="writing-mode: bt-lr; -webkit-appearance: slider-vertical; height: 120px; width: 100%;">
-                <span class="eq-val" style="font-size: 10px; font-family: 'JetBrains Mono', monospace; display: block; margin-top: 6px;">0dB</span>
-              </div>
-
-              <div>
-                <span style="font-size: 10px; color: var(--text-secondary); display: block; margin-bottom: 8px;">3.6kHz<br>(Presence)</span>
-                <input type="range" class="eq-slider" data-band="3" min="-12" max="12" step="0.5" value="0" style="writing-mode: bt-lr; -webkit-appearance: slider-vertical; height: 120px; width: 100%;">
-                <span class="eq-val" style="font-size: 10px; font-family: 'JetBrains Mono', monospace; display: block; margin-top: 6px;">0dB</span>
-              </div>
-
-              <div>
-                <span style="font-size: 10px; color: var(--text-secondary); display: block; margin-bottom: 8px;">14kHz<br>(Air/Clarity)</span>
-                <input type="range" class="eq-slider" data-band="4" min="-12" max="12" step="0.5" value="0" style="writing-mode: bt-lr; -webkit-appearance: slider-vertical; height: 120px; width: 100%;">
-                <span class="eq-val" style="font-size: 10px; font-family: 'JetBrains Mono', monospace; display: block; margin-top: 6px;">0dB</span>
-              </div>
+            <div class="eq-bands-container">
+              <div class="eq-band"><span class="eq-label">60Hz<br>(Sub-Bass)</span><div class="eq-vslider-wrap"><input type="range" class="eq-slider" data-band="0" min="-12" max="12" step="0.5" value="0"></div><span class="eq-val">0dB</span></div>
+              <div class="eq-band"><span class="eq-label">230Hz<br>(Warmth)</span><div class="eq-vslider-wrap"><input type="range" class="eq-slider" data-band="1" min="-12" max="12" step="0.5" value="0"></div><span class="eq-val">0dB</span></div>
+              <div class="eq-band"><span class="eq-label">910Hz<br>(Vocals)</span><div class="eq-vslider-wrap"><input type="range" class="eq-slider" data-band="2" min="-12" max="12" step="0.5" value="0"></div><span class="eq-val">0dB</span></div>
+              <div class="eq-band"><span class="eq-label">3.6kHz<br>(Presence)</span><div class="eq-vslider-wrap"><input type="range" class="eq-slider" data-band="3" min="-12" max="12" step="0.5" value="0"></div><span class="eq-val">0dB</span></div>
+              <div class="eq-band"><span class="eq-label">14kHz<br>(Air/Clarity)</span><div class="eq-vslider-wrap"><input type="range" class="eq-slider" data-band="4" min="-12" max="12" step="0.5" value="0"></div><span class="eq-val">0dB</span></div>
             </div>
           </div>
 
-          <!-- Section 4: Crossfade Mix -->
-          <div class="glass-panel" style="padding: 20px; border-radius: 20px;">
+          <div class="glass-panel dsp-card">
             <label style="font-size: 13px; display: block; margin-bottom: 8px;">Crossfade Duration (Auto-Mix Remix)</label>
-            <input type="range" class="crossfade-slider-input" min="0" max="15" step="1" value="10" style="width: 100%; accent-color: var(--primary-glow);">
-            <span class="crossfade-val-disp" style="font-family: 'JetBrains Mono', monospace; font-size: 14px; margin-top: 6px; display: inline-block;">10s</span>
+            <input type="range" class="crossfade-slider-input" min="0" max="15" step="1" value="10">
+            <span class="crossfade-val-disp mono-val" style="margin-top: 6px; display: inline-block;">10s</span>
           </div>
 
+          <div class="glass-panel dsp-card">
+            <h3 style="font-size: 16px; margin-bottom: 12px;">Sleep Timer</h3>
+            <div class="sleep-btn-row">
+              <button class="sleep-btn" data-min="15">15 min</button>
+              <button class="sleep-btn" data-min="30">30 min</button>
+              <button class="sleep-btn" data-min="45">45 min</button>
+              <button class="sleep-btn" data-min="60">60 min</button>
+              <button class="sleep-btn cancel" id="sleep-cancel-btn">Cancel</button>
+            </div>
+            <p id="sleep-timer-status" style="font-size: 12px; color: var(--text-secondary); margin-top: 10px;">Sleep Timer: Off</p>
+          </div>
         </div>
       </section>
-
     </main>
   </div>
 
-  <!-- Master Player Bar -->
   <footer class="master-player-bar glass-panel" id="master-player-bar">
     <div class="player-left">
       <div id="mini-art" class="mini-art beat-glow-target"></div>
@@ -260,20 +203,20 @@
         <span id="mini-title" class="title">Playing Audio</span>
         <span id="mini-artist" class="artist">BOOSTER V0.9 • Designed by Raj Pawar</span>
       </div>
+      <button id="fav-btn" class="icon-btn heart-btn" aria-label="Add to favorites">♡</button>
     </div>
 
     <div class="player-center">
       <div class="player-controls">
-        <button id="prev-btn" class="icon-btn">⏮</button>
-        <button id="master-play-btn" class="icon-btn play-main">▶</button>
-        <button id="next-btn" class="icon-btn">⏭</button>
+        <button id="shuffle-btn" class="icon-btn small-btn" aria-label="Toggle shuffle">🔀</button>
+        <button id="prev-btn" class="icon-btn" aria-label="Previous track">⏮</button>
+        <button id="master-play-btn" class="icon-btn play-main" aria-label="Play or pause"></button>
+        <button id="next-btn" class="icon-btn" aria-label="Next track">⏭</button>
+        <button id="repeat-btn" class="icon-btn small-btn" aria-label="Toggle repeat">🔁</button>
       </div>
-
       <div class="timeline-row">
         <span id="time-current">0:00</span>
-        <div id="progress-bar-container" class="timeline-bar">
-          <div id="progress-fill" class="timeline-fill"></div>
-        </div>
+        <div id="progress-bar-container" class="timeline-bar"><div id="progress-fill" class="timeline-fill"></div></div>
         <span id="time-total">0:00</span>
       </div>
     </div>
@@ -286,41 +229,43 @@
     </div>
   </footer>
 
-  <!-- Slide-Up Player Drawer Modal -->
+  <!-- Mobile bottom navigation -->
+  <nav class="mobile-tabbar">
+    <button class="mobile-nav-item active" data-target="view-home"><span>🏠</span><small>Home</small></button>
+    <button class="mobile-nav-item" data-target="view-now-playing"><span>🎧</span><small>Queue</small></button>
+    <button class="mobile-nav-item" data-target="view-pro-audio"><span>🎛️</span><small>DSP</small></button>
+  </nav>
+
   <div id="player-modal" class="player-modal glass-panel">
-    <button id="modal-close-btn" class="modal-close-btn">🞃</button>
+    <button id="modal-close-btn" class="modal-close-btn" aria-label="Close player">🞃</button>
     <div class="modal-content">
       <div id="modal-art" class="modal-art beat-glow-target"></div>
       <div class="modal-meta">
         <h1 id="modal-title">Now Playing</h1>
         <p id="modal-artist">BOOSTER V0.9 • Designed by Raj Pawar</p>
       </div>
-
       <div class="modal-spectrum">
         <span class="bar"></span><span class="bar"></span><span class="bar"></span>
         <span class="bar"></span><span class="bar"></span><span class="bar"></span>
       </div>
-
       <div class="modal-timeline-row">
         <span id="modal-time-current">0:00</span>
-        <div id="modal-progress-container" class="timeline-bar">
-          <div id="modal-progress-fill" class="timeline-fill"></div>
-        </div>
+        <div id="modal-progress-container" class="timeline-bar"><div id="modal-progress-fill" class="timeline-fill"></div></div>
         <span id="modal-time-total">0:00</span>
       </div>
-
       <div class="modal-controls">
-        <button id="modal-prev-btn" class="icon-btn">⏮</button>
-        <button id="modal-play-btn" class="icon-btn play-main">▶</button>
-        <button id="modal-next-btn" class="icon-btn">⏭</button>
+        <button id="modal-shuffle-btn" class="icon-btn small-btn" aria-label="Toggle shuffle">🔀</button>
+        <button id="modal-prev-btn" class="icon-btn" aria-label="Previous track">⏮</button>
+        <button id="modal-play-btn" class="icon-btn play-main" aria-label="Play or pause"></button>
+        <button id="modal-next-btn" class="icon-btn" aria-label="Next track">⏭</button>
+        <button id="modal-repeat-btn" class="icon-btn small-btn" aria-label="Toggle repeat">🔁</button>
       </div>
-
-      <div class="modal-crossfade-box" style="margin-top: 24px; width: 100%; background: rgba(255,255,255,0.03); padding: 12px; border-radius: 12px; border: 1px solid var(--glass-border);">
-        <div style="display: flex; justify-content: space-between; font-size: 11px; margin-bottom: 6px; color: var(--text-secondary);">
-          <span>Crossfade Transition</span>
-          <span class="crossfade-val-disp">10s</span>
+      <button id="modal-fav-btn" class="modal-fav-btn" aria-label="Add to favorites">♡ Add to Favorites</button>
+      <div class="modal-crossfade-box">
+        <div class="slider-label-row" style="color: var(--text-secondary); margin-bottom:6px;">
+          <span>Crossfade Transition</span><span class="crossfade-val-disp mono-val">10s</span>
         </div>
-        <input type="range" class="crossfade-slider-input" min="0" max="15" step="1" value="10" style="width: 100%; accent-color: var(--primary-glow);">
+        <input type="range" class="crossfade-slider-input" min="0" max="15" step="1" value="10">
       </div>
     </div>
   </div>
