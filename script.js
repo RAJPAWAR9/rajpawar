@@ -1,20 +1,13 @@
 /**
  * BOOSTER V1.0 - Next-Gen Audio OS Engine & Beat Reactive Suite
- * Designed by Raj Pawar — Cross-device redesign with bug fixes & new features
- * v1.0 additions: quality-first format chain, synced lyrics engine, TV auto-detect,
- * roving-focus accessibility, modal focus trapping, playback speed, visibility-aware
- * visualizer (battery/CPU fix), crossfade volume bugfix.
+ * Designed by Raj Pawar
+ * Integrated with LRCLIB API Engine for exact time-synchronized lyrics.
  */
 
 const SECURITY_PASSWORD = "raj123";
 const BASE_FOLDER_2026 = "song/2026 music";
 const BASE_FOLDER_90S = "song/2026 music/90s";
-const PRELOAD_LEAD_SECONDS = 6;
 
-// Ordered by fidelity preference. Existing catalog is m4a/mp3 — flac/wav are
-// forward-compatible slots: if you ever drop higher-quality masters into the
-// same folders with these extensions, the player will prefer them automatically.
-// Nothing is re-encoded; this only decides *which existing file* to request.
 const QUALITY_CHAIN = ["flac", "wav", "m4a", "mp3"];
 
 const playlist = {
@@ -95,59 +88,8 @@ const playlist = {
   ]
 };
 
-// ===== Synced Lyrics Database =====
-const LYRICS_DB = {
-  "Apna Time Aayega - Ranveer Singh, DIVINE": `[00:00.00](Intro Instrumental)
-[00:06.00]Utho apni raakh se, tu udd ja ab khalaas mein
-[00:10.00]Pehchaan dharti ko tu, jaag ab talaash mein
-[00:14.00]Kiski khabar hai tujhe, kiski aash mein?
-[00:18.00]Apna time aayega!
-[00:21.00]Tu nanga hi toh aaya hai, kya ghanta leke jaayega
-[00:25.00]Apna time aayega!
-[00:29.00]Apna time aayega!
-[00:32.00]Jitni taakat hai utni tu aag laga
-[00:36.00]Apna time aayega!`,
-
-  "Blue Eyes - Yo Yo Honey Singh": `[00:00.00](Beat Drops)
-[00:05.00]Blue eyes, hypnotize teri kardi hai mennu
-[00:09.00]I swear chhoti dress mein bomb lagdi mennu
-[00:13.00]Glossy lips, uff ye tricks
-[00:16.00]Baby lagdi hai killer!
-[00:19.00]Blue eyes, hypnotize teri kardi hai mennu...`,
-
-  "Badtameez Dil - Benny Dayal, Shefali Alvares": `[00:00.00](Trumpet Intro)
-[00:08.00]Paan mein pudina dekha, naak ka nagina dekha
-[00:12.00]Chikni chameli dekhi, atapata jeena dekha
-[00:16.00]Badtameez dil, badtameez dil, maane na!
-[00:21.00]Badtameez dil, badtameez dil, maane na!`,
-
-  "Maan Meri Jaan - King": `[00:00.00](Acoustic Intro)
-[00:05.00]Main teri aankhon mein udaasi kabhi dekh sakta nahi
-[00:10.00]Tujhe khush main rakhunga sohneya
-[00:14.00]Main tere honto pe khamoshi dekh sakta nahi
-[00:19.00]Tu baatein kitni bhi kar le sohneya
-[00:23.00]Tu maan meri jaan, main tujhe jaane na dunga
-[00:28.00]Main tujhko apni baahon mein chhupa ke rakhunga!`,
-
-  "Gulabi Sadi - Sanju Rathod, G-SPXRK": `[00:00.00](Groovy Intro Beat)
-[00:06.00]Gulabi sadi aani laal rumaal
-[00:10.00]Mazi lajalu bai diste kamaal
-[00:14.00]Gulabi sadi aani laal rumaal
-[00:18.00]Mazi lajalu bai diste kamaal!`,
-
-  "gulabi aahken": `[00:00.00](Classic Intro Guitar)
-[00:07.00]Gulabi aankhen jo teri dekhi
-[00:12.00]Sharaabi yeh dil ho gaya
-[00:17.00]Sambhalo mujhko o mere yaaro
-[00:22.00]Sambhalna mushkil ho gaya!`,
-
-  "Aise_Na_Mujhe": `[00:00.00](Kishore Kumar Intro)
-[00:06.00]Aise na mujhe tum dekho, seene se laga lunga
-[00:12.00]Tumko main chura lunga tumse, dil mein chhupa lunga
-[00:18.00]Aise na mujhe tum dekho...`
-};
-
-const lyricsParseCache = new Map();
+// Caches for LRCLIB lyrics fetched per song file
+const lyricsMemoryCache = new Map();
 
 // ===== Icons =====
 const ICON_PLAY = '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>';
@@ -164,7 +106,7 @@ let songHistory = [];
 let customQueue = [];
 let favorites = new Set(safeParseJSON(localStorage.getItem('booster_favorites'), []));
 let shuffleMode = false;
-let repeatMode = 'all'; // 'all' | 'one' | 'none'
+let repeatMode = 'all'; 
 let playbackSpeed = 1;
 
 let playerA = new Audio();
@@ -202,6 +144,7 @@ let lastPersistTime = 0;
 let lastFocusedBeforeModal = null;
 let lastLyricsUserScroll = 0;
 let currentLyricLineIndex = -1;
+let currentActiveParsedLyrics = null;
 
 // ===== Helpers =====
 function safeParseJSON(raw, fallback) {
@@ -236,7 +179,7 @@ function escapeHtml(str) {
   return div.innerHTML;
 }
 
-// ===== Accessibility: focusable helpers + modal focus trap =====
+// ===== Accessibility & Focus =====
 function getFocusableIn(el) {
   if (!el) return [];
   return Array.from(el.querySelectorAll('button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'))
@@ -274,7 +217,7 @@ function closeModalAccessible(modalEl) {
   }
 }
 
-// ===== Roving focus (keyboard / TV remote navigation between groups) =====
+// ===== Roving focus =====
 function enableRovingFocus(container, itemsSelector, opts = {}) {
   if (!container) return;
   const { horizontal = true, vertical = false } = opts;
@@ -296,7 +239,6 @@ function enableRovingFocus(container, itemsSelector, opts = {}) {
   });
 }
 
-// ===== TV environment detection =====
 function detectTVEnvironment() {
   const ua = navigator.userAgent || "";
   return /smart-?tv|smarttv|tizen|webos|viera|netcast|roku|appletv|googletv|hbbtv|aft[a-z]?|crkey|bravia/i.test(ua);
@@ -378,12 +320,7 @@ function toggleFavorite(song) {
   else favorites.add(song.file);
   localStorage.setItem('booster_favorites', JSON.stringify([...favorites]));
   syncFavoriteButtons();
-  if (currentCategory === "Favorites") {
-    displayedList = getActiveList();
-    renderTrendingGrid();
-  } else {
-    renderTrendingGrid();
-  }
+  renderTrendingGrid();
 }
 
 function syncFavoriteButtons() {
@@ -728,7 +665,9 @@ function loadAndPlaySong(songToPlay = null, isManualTrigger = true) {
   setupMediaSession(song);
   syncFavoriteButtons();
   preloadedForCurrent = false;
-  renderLyricsPanel(song);
+
+  // Fetch LRCLIB real synced lyrics
+  fetchAndRenderLrclibLyrics(song);
 
   if (isManualTrigger) {
     crossfadeStarted = false;
@@ -867,7 +806,7 @@ function startCrossfade(nextSong) {
       syncFavoriteButtons();
       updateQueueAndHistoryUI();
       syncActiveCardHighlight();
-      renderLyricsPanel(nextSong);
+      fetchAndRenderLrclibLyrics(nextSong);
     }
   }, fadeStepMs);
 }
@@ -883,8 +822,9 @@ function updatePlaybackUI(isPlaying) {
   }
 }
 
-// ===== Synced Lyrics Engine =====
+// ===== REAL LRCLIB API LYRICS ENGINE =====
 function parseLRC(lrcText) {
+  if (!lrcText) return [];
   const lines = lrcText.split('\n');
   const timeTagRe = /\[(\d{2}):(\d{2})(?:\.(\d{1,3}))?\]/g;
   const result = [];
@@ -895,48 +835,95 @@ function parseLRC(lrcText) {
     tags.forEach(tag => {
       const mins = parseInt(tag[1], 10);
       const secs = parseInt(tag[2], 10);
-      const frac = tag[3] ? parseFloat(`0.${tag[3]}`) : 0;
+      const fracStr = tag[3] ? (tag[3].length === 2 ? tag[3] : tag[3].padEnd(3, '0')) : '0';
+      const frac = parseFloat(`0.${fracStr}`);
       const time = mins * 60 + secs + frac;
-      result.push({ time, text });
+      if (text.length > 0) {
+        result.push({ time, text });
+      }
     });
   });
   return result.sort((a, b) => a.time - b.time);
 }
 
-function getLyricsForSong(song) {
-  if (!song) return null;
-  if (lyricsParseCache.has(song.file)) return lyricsParseCache.get(song.file);
-
-  let lrcContent = LYRICS_DB[song.file];
-  
-  // Auto Fallback: Any track without manual LRC entry generates synced live lines!
-  if (!lrcContent) {
-    lrcContent = `[00:00.00]🎵 ${song.title} - ${song.artist || 'BOOSTER Audio'}
-[00:04.00]...🎶 Music Intro 🎶...
-[00:10.00]Playing: ${song.title}
-[00:18.00]Feel the sound & spatial bass
-[00:25.00]Artist: ${song.artist || 'BOOSTER'}
-[00:32.00]...🎶 Instrumental Section 🎶...
-[00:45.00]BOOSTER Audio Engine V1.0
-[00:58.00]...🎶 Beats & Rhythm 🎶...`;
-  }
-
-  const parsed = parseLRC(lrcContent);
-  lyricsParseCache.set(song.file, parsed);
-  return parsed;
-}
-
-function renderLyricsPanel(song) {
+async function fetchAndRenderLrclibLyrics(song) {
   currentLyricLineIndex = -1;
-  const lines = getLyricsForSong(song);
+  currentActiveParsedLyrics = null;
+
   const targets = [
     document.getElementById('lyrics-list'),
     document.getElementById('lyrics-fullscreen-list')
   ];
+
+  targets.forEach(container => {
+    if (container) {
+      container.innerHTML = `<p class="lyrics-empty-state">Searching synced lyrics on LRCLIB API...</p>`;
+    }
+  });
+
+  if (!song) return;
+
+  if (lyricsMemoryCache.has(song.file)) {
+    const cached = lyricsMemoryCache.get(song.file);
+    renderParsedLyrics(cached);
+    return;
+  }
+
+  const trackTitle = song.title || song.file;
+  const primaryArtist = song.artist ? song.artist.split(',')[0].trim() : '';
+
+  try {
+    // Attempt direct match first
+    let getUrl = `https://lrclib.net/api/get?track_name=${encodeURIComponent(trackTitle)}`;
+    if (primaryArtist) getUrl += `&artist_name=${encodeURIComponent(primaryArtist)}`;
+
+    let response = await fetch(getUrl);
+    let data = null;
+
+    if (response.ok) {
+      data = await response.json();
+    } else {
+      // Search endpoint fallback
+      const searchUrl = `https://lrclib.net/api/search?q=${encodeURIComponent(trackTitle + ' ' + primaryArtist)}`;
+      const searchRes = await fetch(searchUrl);
+      if (searchRes.ok) {
+        const searchData = await searchRes.json();
+        if (Array.isArray(searchData) && searchData.length > 0) {
+          data = searchData.find(item => item.syncedLyrics) || searchData[0];
+        }
+      }
+    }
+
+    if (data && data.syncedLyrics) {
+      const parsed = parseLRC(data.syncedLyrics);
+      lyricsMemoryCache.set(song.file, parsed);
+      renderParsedLyrics(parsed);
+    } else if (data && data.plainLyrics) {
+      const plainLines = data.plainLyrics.split('\n').filter(l => l.trim().length > 0).map((line, idx) => ({ time: idx * 4, text: line.trim() }));
+      lyricsMemoryCache.set(song.file, plainLines);
+      renderParsedLyrics(plainLines);
+    } else {
+      lyricsMemoryCache.set(song.file, []);
+      renderParsedLyrics([]);
+    }
+  } catch (err) {
+    console.error("LRCLIB API Fetch Error:", err);
+    lyricsMemoryCache.set(song.file, []);
+    renderParsedLyrics([]);
+  }
+}
+
+function renderParsedLyrics(lines) {
+  currentActiveParsedLyrics = lines;
+  const targets = [
+    document.getElementById('lyrics-list'),
+    document.getElementById('lyrics-fullscreen-list')
+  ];
+
   targets.forEach(container => {
     if (!container) return;
     if (!lines || lines.length === 0) {
-      container.innerHTML = `<p class="lyrics-empty-state">Synced lyrics loading...</p>`;
+      container.innerHTML = `<p class="lyrics-empty-state">No time-synchronized lyrics found on LRCLIB for this song.</p>`;
       return;
     }
     container.innerHTML = lines.map((line, idx) =>
@@ -946,8 +933,7 @@ function renderLyricsPanel(song) {
 }
 
 function updateLyricsHighlight(currentTime) {
-  const song = (displayedList.length > 0 ? displayedList : getActiveList())[currentSongIndex];
-  const lines = getLyricsForSong(song);
+  const lines = currentActiveParsedLyrics;
   if (!lines || lines.length === 0) return;
 
   let idx = -1;
@@ -1263,7 +1249,7 @@ function setupContinueListening() {
   }
 }
 
-// ===== DSP controls binding =====
+// ===== DSP Controls Binding =====
 function bindProDspControls() {
   const dspToggle = document.getElementById('master-dsp-toggle');
   if (dspToggle) {
