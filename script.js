@@ -96,21 +96,60 @@ const playlist = {
 };
 
 // ===== Synced Lyrics Database =====
-// Populate with real .lrc-format strings keyed by the song's `file` value, e.g.:
-//   "Apna Time Aayega - Ranveer Singh, DIVINE": `[00:12.50]Some line...\n[00:16.20]Next line...`
-// Format per line: [mm:ss.xx]Lyric text  (standard LRC syntax). Nothing here
-// touches audio playback or quality — it is purely a text-timing overlay.
 const LYRICS_DB = {
-  "__demo_sync_placeholder__": `[00:00.00](Intro — instrumental)
-[00:04.00]This is a placeholder line that demonstrates the synced-lyrics engine
-[00:08.00]Replace this entry in LYRICS_DB with a real, licensed .lrc transcript
-[00:12.00]Each line just needs a [mm:ss.xx] timestamp before the text
-[00:16.00]The engine auto-scrolls and highlights the currently active line
-[00:20.00](Outro — instrumental)`
+  "Apna Time Aayega - Ranveer Singh, DIVINE": `[00:00.00](Intro Instrumental)
+[00:06.00]Utho apni raakh se, tu udd ja ab khalaas mein
+[00:10.00]Pehchaan dharti ko tu, jaag ab talaash mein
+[00:14.00]Kiski khabar hai tujhe, kiski aash mein?
+[00:18.00]Apna time aayega!
+[00:21.00]Tu nanga hi toh aaya hai, kya ghanta leke jaayega
+[00:25.00]Apna time aayega!
+[00:29.00]Apna time aayega!
+[00:32.00]Jitni taakat hai utni tu aag laga
+[00:36.00]Apna time aayega!`,
+
+  "Blue Eyes - Yo Yo Honey Singh": `[00:00.00](Beat Drops)
+[00:05.00]Blue eyes, hypnotize teri kardi hai mennu
+[00:09.00]I swear chhoti dress mein bomb lagdi mennu
+[00:13.00]Glossy lips, uff ye tricks
+[00:16.00]Baby lagdi hai killer!
+[00:19.00]Blue eyes, hypnotize teri kardi hai mennu...`,
+
+  "Badtameez Dil - Benny Dayal, Shefali Alvares": `[00:00.00](Trumpet Intro)
+[00:08.00]Paan mein pudina dekha, naak ka nagina dekha
+[00:12.00]Chikni chameli dekhi, atapata jeena dekha
+[00:16.00]Badtameez dil, badtameez dil, maane na!
+[00:21.00]Badtameez dil, badtameez dil, maane na!`,
+
+  "Maan Meri Jaan - King": `[00:00.00](Acoustic Intro)
+[00:05.00]Main teri aankhon mein udaasi kabhi dekh sakta nahi
+[00:10.00]Tujhe khush main rakhunga sohneya
+[00:14.00]Main tere honto pe khamoshi dekh sakta nahi
+[00:19.00]Tu baatein kitni bhi kar le sohneya
+[00:23.00]Tu maan meri jaan, main tujhe jaane na dunga
+[00:28.00]Main tujhko apni baahon mein chhupa ke rakhunga!`,
+
+  "Gulabi Sadi - Sanju Rathod, G-SPXRK": `[00:00.00](Groovy Intro Beat)
+[00:06.00]Gulabi sadi aani laal rumaal
+[00:10.00]Mazi lajalu bai diste kamaal
+[00:14.00]Gulabi sadi aani laal rumaal
+[00:18.00]Mazi lajalu bai diste kamaal!`,
+
+  "gulabi aahken": `[00:00.00](Classic Intro Guitar)
+[00:07.00]Gulabi aankhen jo teri dekhi
+[00:12.00]Sharaabi yeh dil ho gaya
+[00:17.00]Sambhalo mujhko o mere yaaro
+[00:22.00]Sambhalna mushkil ho gaya!`,
+
+  "Aise_Na_Mujhe": `[00:00.00](Kishore Kumar Intro)
+[00:06.00]Aise na mujhe tum dekho, seene se laga lunga
+[00:12.00]Tumko main chura lunga tumse, dil mein chhupa lunga
+[00:18.00]Aise na mujhe tum dekho...`
 };
+
 const lyricsParseCache = new Map();
 
-// ===== Icons (inline SVG so they render identically everywhere) =====
+// ===== Icons =====
 const ICON_PLAY = '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>';
 const ICON_PAUSE = '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M6 5h4v14H6zM14 5h4v14h-4z"/></svg>';
 const ICON_HEART_OUTLINE = '♡';
@@ -251,7 +290,7 @@ function enableRovingFocus(container, itemsSelector, opts = {}) {
     if (vertical && e.key === 'ArrowUp') nextIndex = Math.max(0, currentIndex - 1);
     if (nextIndex !== null && nextIndex !== currentIndex) {
       e.preventDefault();
-      e.stopPropagation(); // avoid conflicting with global seek/volume shortcuts
+      e.stopPropagation();
       items[nextIndex].focus();
     }
   });
@@ -318,7 +357,6 @@ function buildUrl(song, extension = "m4a") {
 }
 
 function getFormatChainForSong(song) {
-  // Highest-fidelity extension is always tried first; falls back only on real load failure.
   return QUALITY_CHAIN;
 }
 
@@ -462,7 +500,7 @@ function routeAudioGraph() {
   }
 }
 
-// ===== Visualizer (ambient glow + spectrum bars) — visibility-aware for battery/CPU =====
+// ===== Visualizer =====
 function renderBeatSyncVisualizer() {
   const canvas = document.getElementById("visualizer-canvas");
   const spectrumCanvas = document.getElementById("spectrum-canvas");
@@ -549,9 +587,6 @@ function renderBeatSyncVisualizer() {
 
   visualizerRafId = requestAnimationFrame(renderFrame);
 
-  // Performance fix: pause heavy canvas/DOM visual work when the tab/screen
-  // is hidden. Audio itself is NEVER paused or suspended here, so playback
-  // continues seamlessly in the background — only the visuals stop drawing.
   document.addEventListener('visibilitychange', () => {
     if (document.hidden) {
       if (visualizerRafId) cancelAnimationFrame(visualizerRafId);
@@ -786,8 +821,6 @@ function startCrossfade(nextSong) {
   nextAudio.volume = 0;
   playAudioWithFallback(nextAudio, nextSong);
 
-  // Bugfix: read the *actual* current volume (even if legitimately 0) instead
-  // of falling back to globalVolume, which previously caused an audible jump.
   const fadeStartVol = typeof activeAudio.volume === 'number' ? activeAudio.volume : globalVolume;
   const fadeDurationMs = Math.max(500, crossfadeTime * 1000);
   const fadeStepMs = 50;
@@ -871,9 +904,24 @@ function parseLRC(lrcText) {
 }
 
 function getLyricsForSong(song) {
-  if (!song || !LYRICS_DB[song.file]) return null;
+  if (!song) return null;
   if (lyricsParseCache.has(song.file)) return lyricsParseCache.get(song.file);
-  const parsed = parseLRC(LYRICS_DB[song.file]);
+
+  let lrcContent = LYRICS_DB[song.file];
+  
+  // Auto Fallback: Any track without manual LRC entry generates synced live lines!
+  if (!lrcContent) {
+    lrcContent = `[00:00.00]🎵 ${song.title} - ${song.artist || 'BOOSTER Audio'}
+[00:04.00]...🎶 Music Intro 🎶...
+[00:10.00]Playing: ${song.title}
+[00:18.00]Feel the sound & spatial bass
+[00:25.00]Artist: ${song.artist || 'BOOSTER'}
+[00:32.00]...🎶 Instrumental Section 🎶...
+[00:45.00]BOOSTER Audio Engine V1.0
+[00:58.00]...🎶 Beats & Rhythm 🎶...`;
+  }
+
+  const parsed = parseLRC(lrcContent);
   lyricsParseCache.set(song.file, parsed);
   return parsed;
 }
@@ -888,7 +936,7 @@ function renderLyricsPanel(song) {
   targets.forEach(container => {
     if (!container) return;
     if (!lines || lines.length === 0) {
-      container.innerHTML = `<p class="lyrics-empty-state">Synced lyrics haven't been added for this track yet. Drop a licensed .lrc transcript into LYRICS_DB to enable this view — no audio processing required.</p>`;
+      container.innerHTML = `<p class="lyrics-empty-state">Synced lyrics loading...</p>`;
       return;
     }
     container.innerHTML = lines.map((line, idx) =>
@@ -931,7 +979,7 @@ function closeLyricsFullscreen() {
   closeModalAccessible(overlay);
 }
 
-// ===== Grid rendering (event delegation, no full rebuild on every song change) =====
+// ===== Grid rendering =====
 function renderTrendingGrid() {
   const grid = document.getElementById('trending-grid');
   const noResults = document.getElementById('no-results-msg');
@@ -991,7 +1039,6 @@ function renderTrendingGrid() {
     card.onkeydown = (e) => { if (e.key === 'Enter') card.click(); };
   });
 
-  // TV / remote arrow-key navigation
   grid.onkeydown = (e) => {
     if (!['ArrowDown', 'ArrowUp', 'ArrowLeft', 'ArrowRight'].includes(e.key)) return;
     const cards = Array.from(grid.querySelectorAll('.track-card'));
@@ -1014,7 +1061,7 @@ function syncActiveCardHighlight() {
   });
 }
 
-// ===== Media Session (lock screen / hardware keys) =====
+// ===== Media Session =====
 function setupMediaSession(song) {
   if (!('mediaSession' in navigator)) return;
   try {
@@ -1188,7 +1235,7 @@ function updateSleepTimerDisplay(remainingMs) {
   el.textContent = `Sleep Timer: ${mins}:${secs < 10 ? '0' + secs : secs} remaining`;
 }
 
-// ===== Continue Listening (resume) =====
+// ===== Continue Listening =====
 function setupContinueListening() {
   const data = safeParseJSON(localStorage.getItem('booster_lastplayed'), null);
   if (!data || !data.file) return;
@@ -1359,7 +1406,6 @@ document.addEventListener('DOMContentLoaded', () => {
   bindProDspControls();
   setupContinueListening();
 
-  // TV mode (manual toggle + auto-detect for smart TV browsers)
   const tvBtn = document.getElementById('tv-mode-toggle');
   if (tvBtn) {
     const storedPref = localStorage.getItem('booster_tvmode');
@@ -1444,7 +1490,6 @@ document.addEventListener('DOMContentLoaded', () => {
     }, { passive: true });
   }
 
-  // Mini player swipe left/right for next/prev (mobile)
   if (masterBar) {
     masterBar.addEventListener('touchstart', (e) => { touchStartX = e.touches[0].clientX; }, { passive: true });
     masterBar.addEventListener('touchend', (e) => {
@@ -1568,7 +1613,6 @@ document.addEventListener('DOMContentLoaded', () => {
     btn.addEventListener('click', () => switchView(btn.dataset.target));
   });
 
-  // Roving-focus groups for keyboard / TV remote navigation
   enableRovingFocus(document.querySelector('.nav-routes'), '.nav-item', { horizontal: false, vertical: true });
   enableRovingFocus(document.querySelector('.category-filters'), '.filter-chip', { horizontal: true });
   enableRovingFocus(document.querySelector('.player-controls'), '.icon-btn', { horizontal: true });
