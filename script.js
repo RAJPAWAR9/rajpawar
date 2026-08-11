@@ -1,12 +1,21 @@
 /**
- * BOOSTER V0.9 - Next-Gen Audio OS Engine & Beat Reactive Suite
+ * BOOSTER V1.0 - Next-Gen Audio OS Engine & Beat Reactive Suite
  * Designed by Raj Pawar — Cross-device redesign with bug fixes & new features
+ * v1.0 additions: quality-first format chain, synced lyrics engine, TV auto-detect,
+ * roving-focus accessibility, modal focus trapping, playback speed, visibility-aware
+ * visualizer (battery/CPU fix), crossfade volume bugfix.
  */
 
 const SECURITY_PASSWORD = "raj123";
 const BASE_FOLDER_2026 = "song/2026 music";
 const BASE_FOLDER_90S = "song/2026 music/90s";
 const PRELOAD_LEAD_SECONDS = 6;
+
+// Ordered by fidelity preference. Existing catalog is m4a/mp3 — flac/wav are
+// forward-compatible slots: if you ever drop higher-quality masters into the
+// same folders with these extensions, the player will prefer them automatically.
+// Nothing is re-encoded; this only decides *which existing file* to request.
+const QUALITY_CHAIN = ["flac", "wav", "m4a", "mp3"];
 
 const playlist = {
   "Trending": [
@@ -86,11 +95,27 @@ const playlist = {
   ]
 };
 
+// ===== Synced Lyrics Database =====
+// Populate with real .lrc-format strings keyed by the song's `file` value, e.g.:
+//   "Apna Time Aayega - Ranveer Singh, DIVINE": `[00:12.50]Some line...\n[00:16.20]Next line...`
+// Format per line: [mm:ss.xx]Lyric text  (standard LRC syntax). Nothing here
+// touches audio playback or quality — it is purely a text-timing overlay.
+const LYRICS_DB = {
+  "__demo_sync_placeholder__": `[00:00.00](Intro — instrumental)
+[00:04.00]This is a placeholder line that demonstrates the synced-lyrics engine
+[00:08.00]Replace this entry in LYRICS_DB with a real, licensed .lrc transcript
+[00:12.00]Each line just needs a [mm:ss.xx] timestamp before the text
+[00:16.00]The engine auto-scrolls and highlights the currently active line
+[00:20.00](Outro — instrumental)`
+};
+const lyricsParseCache = new Map();
+
 // ===== Icons (inline SVG so they render identically everywhere) =====
 const ICON_PLAY = '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>';
 const ICON_PAUSE = '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M6 5h4v14H6zM14 5h4v14h-4z"/></svg>';
 const ICON_HEART_OUTLINE = '♡';
 const ICON_HEART_FILLED = '♥';
+const SPEED_STEPS = [0.75, 1, 1.25, 1.5, 1.75, 2];
 
 // ===== State =====
 let currentCategory = "Trending";
@@ -101,6 +126,7 @@ let customQueue = [];
 let favorites = new Set(safeParseJSON(localStorage.getItem('booster_favorites'), []));
 let shuffleMode = false;
 let repeatMode = 'all'; // 'all' | 'one' | 'none'
+let playbackSpeed = 1;
 
 let playerA = new Audio();
 let playerB = new Audio();
@@ -134,6 +160,10 @@ let sleepTimerHandle = null;
 let sleepTimerEnd = 0;
 let lastPersistTime = 0;
 
+let lastFocusedBeforeModal = null;
+let lastLyricsUserScroll = 0;
+let currentLyricLineIndex = -1;
+
 // ===== Helpers =====
 function safeParseJSON(raw, fallback) {
   try { return raw ? JSON.parse(raw) : fallback; } catch (e) { return fallback; }
@@ -159,6 +189,78 @@ function formatTime(secs) {
 function debounce(fn, delay) {
   let t;
   return (...args) => { clearTimeout(t); t = setTimeout(() => fn(...args), delay); };
+}
+
+function escapeHtml(str) {
+  const div = document.createElement('div');
+  div.textContent = str;
+  return div.innerHTML;
+}
+
+// ===== Accessibility: focusable helpers + modal focus trap =====
+function getFocusableIn(el) {
+  if (!el) return [];
+  return Array.from(el.querySelectorAll('button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'))
+    .filter(e => !e.disabled && e.offsetParent !== null);
+}
+
+function trapFocusHandler(e, modalEl) {
+  if (e.key !== 'Tab') return;
+  const focusables = getFocusableIn(modalEl);
+  if (focusables.length === 0) return;
+  const first = focusables[0], last = focusables[focusables.length - 1];
+  if (e.shiftKey && document.activeElement === first) { e.preventDefault(); last.focus(); }
+  else if (!e.shiftKey && document.activeElement === last) { e.preventDefault(); first.focus(); }
+}
+
+function openModalAccessible(modalEl) {
+  if (!modalEl) return;
+  lastFocusedBeforeModal = document.activeElement;
+  modalEl.classList.add('active');
+  const focusables = getFocusableIn(modalEl);
+  if (focusables[0]) focusables[0].focus();
+  modalEl._trapHandler = (e) => trapFocusHandler(e, modalEl);
+  document.addEventListener('keydown', modalEl._trapHandler);
+}
+
+function closeModalAccessible(modalEl) {
+  if (!modalEl) return;
+  modalEl.classList.remove('active');
+  if (modalEl._trapHandler) {
+    document.removeEventListener('keydown', modalEl._trapHandler);
+    modalEl._trapHandler = null;
+  }
+  if (lastFocusedBeforeModal && typeof lastFocusedBeforeModal.focus === 'function') {
+    lastFocusedBeforeModal.focus();
+  }
+}
+
+// ===== Roving focus (keyboard / TV remote navigation between groups) =====
+function enableRovingFocus(container, itemsSelector, opts = {}) {
+  if (!container) return;
+  const { horizontal = true, vertical = false } = opts;
+  container.addEventListener('keydown', (e) => {
+    const items = Array.from(container.querySelectorAll(itemsSelector))
+      .filter(el => !el.disabled && el.offsetParent !== null);
+    const currentIndex = items.indexOf(document.activeElement);
+    if (currentIndex === -1) return;
+    let nextIndex = null;
+    if (horizontal && e.key === 'ArrowRight') nextIndex = Math.min(items.length - 1, currentIndex + 1);
+    if (horizontal && e.key === 'ArrowLeft') nextIndex = Math.max(0, currentIndex - 1);
+    if (vertical && e.key === 'ArrowDown') nextIndex = Math.min(items.length - 1, currentIndex + 1);
+    if (vertical && e.key === 'ArrowUp') nextIndex = Math.max(0, currentIndex - 1);
+    if (nextIndex !== null && nextIndex !== currentIndex) {
+      e.preventDefault();
+      e.stopPropagation(); // avoid conflicting with global seek/volume shortcuts
+      items[nextIndex].focus();
+    }
+  });
+}
+
+// ===== TV environment detection =====
+function detectTVEnvironment() {
+  const ua = navigator.userAgent || "";
+  return /smart-?tv|smarttv|tizen|webos|viera|netcast|roku|appletv|googletv|hbbtv|aft[a-z]?|crkey|bravia/i.test(ua);
 }
 
 // ===== Password Lock =====
@@ -202,6 +304,7 @@ function initPasswordLock() {
       const isPass = passInput.type === 'password';
       passInput.type = isPass ? 'text' : 'password';
       toggleVis.textContent = isPass ? '🙈' : '👁';
+      toggleVis.setAttribute('aria-label', isPass ? 'Hide password' : 'Show password');
     };
   }
 }
@@ -212,6 +315,11 @@ function buildUrl(song, extension = "m4a") {
   const is90s = playlist["90s"].some(s => s.file === song.file);
   const basePath = is90s ? BASE_FOLDER_90S : BASE_FOLDER_2026;
   return `${basePath}/${song.file}.${extension}`.split('/').map(part => encodeURIComponent(part)).join('/');
+}
+
+function getFormatChainForSong(song) {
+  // Highest-fidelity extension is always tried first; falls back only on real load failure.
+  return QUALITY_CHAIN;
 }
 
 function getAllSongsFlat() {
@@ -249,10 +357,12 @@ function syncFavoriteButtons() {
   if (miniHeart) {
     miniHeart.textContent = fav ? ICON_HEART_FILLED : ICON_HEART_OUTLINE;
     miniHeart.classList.toggle('is-fav', fav);
+    miniHeart.setAttribute('aria-pressed', String(fav));
   }
   if (modalHeart) {
     modalHeart.textContent = (fav ? ICON_HEART_FILLED + ' ' : ICON_HEART_OUTLINE + ' ') + (fav ? 'Added to Favorites' : 'Add to Favorites');
     modalHeart.classList.toggle('is-fav', fav);
+    modalHeart.setAttribute('aria-pressed', String(fav));
   }
 }
 
@@ -352,7 +462,7 @@ function routeAudioGraph() {
   }
 }
 
-// ===== Visualizer (ambient glow + spectrum bars) =====
+// ===== Visualizer (ambient glow + spectrum bars) — visibility-aware for battery/CPU =====
 function renderBeatSyncVisualizer() {
   const canvas = document.getElementById("visualizer-canvas");
   const spectrumCanvas = document.getElementById("spectrum-canvas");
@@ -365,12 +475,14 @@ function renderBeatSyncVisualizer() {
   }
   resize();
   window.addEventListener("resize", debounce(resize, 150));
+  window.addEventListener("orientationchange", () => setTimeout(resize, 200));
 
   const bufferLength = analyser ? analyser.frequencyBinCount : 0;
   const dataArray = new Uint8Array(bufferLength);
+  let visualizerRafId = null;
 
   function renderFrame() {
-    requestAnimationFrame(renderFrame);
+    visualizerRafId = requestAnimationFrame(renderFrame);
     if (analyser) analyser.getByteFrequencyData(dataArray);
 
     let subBassSum = 0;
@@ -434,18 +546,37 @@ function renderBeatSyncVisualizer() {
       }
     }
   }
-  renderFrame();
+
+  visualizerRafId = requestAnimationFrame(renderFrame);
+
+  // Performance fix: pause heavy canvas/DOM visual work when the tab/screen
+  // is hidden. Audio itself is NEVER paused or suspended here, so playback
+  // continues seamlessly in the background — only the visuals stop drawing.
+  document.addEventListener('visibilitychange', () => {
+    if (document.hidden) {
+      if (visualizerRafId) cancelAnimationFrame(visualizerRafId);
+      visualizerRafId = null;
+    } else if (!visualizerRafId) {
+      visualizerRafId = requestAnimationFrame(renderFrame);
+    }
+  });
 }
 
 // ===== Playback core =====
-function playAudioWithFallback(audioElement, song) {
+function playAudioWithFallback(audioElement, song, chainIndex = 0) {
   if (!song) return;
-  audioElement.src = buildUrl(song, "m4a");
+  const chain = getFormatChainForSong(song);
+  if (chainIndex >= chain.length) {
+    updatePlaybackUI(false);
+    showToast("Unable to load this track — file missing");
+    return;
+  }
+  audioElement.src = buildUrl(song, chain[chainIndex]);
+  audioElement.playbackRate = playbackSpeed;
   const playPromise = audioElement.play();
   if (playPromise !== undefined) {
     playPromise.then(() => updatePlaybackUI(true)).catch(() => {
-      audioElement.src = buildUrl(song, "mp3");
-      audioElement.play().then(() => updatePlaybackUI(true)).catch(() => updatePlaybackUI(false));
+      playAudioWithFallback(audioElement, song, chainIndex + 1);
     });
   }
 }
@@ -474,7 +605,7 @@ function updateQueueAndHistoryUI() {
         </div>
         <div style="display:flex; align-items:center; gap:8px;">
           <span style="font-size:11px; color:var(--primary-glow);">#${idx + 1}</span>
-          ${customQueue.length > 0 ? `<button data-remove-idx="${idx}" style="background:none; border:none; color:#ff0055; cursor:pointer; font-size:14px;">✕</button>` : ''}
+          ${customQueue.length > 0 ? `<button data-remove-idx="${idx}" aria-label="Remove from queue" style="background:none; border:none; color:#ff0055; cursor:pointer; font-size:14px;">✕</button>` : ''}
         </div>`;
       upnextList.appendChild(item);
     });
@@ -494,12 +625,6 @@ function updateQueueAndHistoryUI() {
       historyList.appendChild(item);
     });
   }
-}
-
-function escapeHtml(str) {
-  const div = document.createElement('div');
-  div.textContent = str;
-  return div.innerHTML;
 }
 
 function removeFromQueue(index) {
@@ -547,7 +672,7 @@ function loadAndPlaySong(songToPlay = null, isManualTrigger = true) {
   if (!song) return;
 
   const titleText = song.title || `Track ${currentSongIndex + 1}`;
-  const artistText = song.artist ? (song.artist + " • Designed by Raj Pawar") : "BOOSTER V0.9 • Designed by Raj Pawar";
+  const artistText = song.artist ? (song.artist + " • Designed by Raj Pawar") : "BOOSTER V1.0 • Designed by Raj Pawar";
 
   if (!songHistory.some(s => s.file === song.file)) {
     songHistory.unshift(song);
@@ -560,12 +685,15 @@ function loadAndPlaySong(songToPlay = null, isManualTrigger = true) {
   setTextSafe('modal-artist', artistText);
   setTextSafe('np-title', titleText);
   setTextSafe('np-artist', artistText);
+  setTextSafe('lyrics-fs-title', titleText);
+  setTextSafe('lyrics-fs-artist', artistText);
 
   updateMoodLighting(song);
   showToast(`Now Playing: ${titleText}`);
   setupMediaSession(song);
   syncFavoriteButtons();
   preloadedForCurrent = false;
+  renderLyricsPanel(song);
 
   if (isManualTrigger) {
     crossfadeStarted = false;
@@ -600,6 +728,8 @@ function attachAudioEvents(audioPlayer) {
     setTextSafe('modal-time-current', formattedCurrent);
     setTextSafe('modal-time-total', formattedTotal);
 
+    updateLyricsHighlight(activeAudio.currentTime);
+
     if ('mediaSession' in navigator) {
       try {
         navigator.mediaSession.setPositionState({
@@ -615,7 +745,6 @@ function attachAudioEvents(audioPlayer) {
 
     const timeLeft = activeAudio.duration - activeAudio.currentTime;
 
-    // Gapless preload for short/zero crossfade settings
     if (!preloadedForCurrent && crossfadeTime <= 2 && timeLeft <= 6 && timeLeft > crossfadeTime) {
       const upcoming = peekNextSong();
       if (upcoming && typeof upcoming === 'object') {
@@ -657,7 +786,9 @@ function startCrossfade(nextSong) {
   nextAudio.volume = 0;
   playAudioWithFallback(nextAudio, nextSong);
 
-  const fadeStartVol = activeAudio.volume || globalVolume;
+  // Bugfix: read the *actual* current volume (even if legitimately 0) instead
+  // of falling back to globalVolume, which previously caused an audible jump.
+  const fadeStartVol = typeof activeAudio.volume === 'number' ? activeAudio.volume : globalVolume;
   const fadeDurationMs = Math.max(500, crossfadeTime * 1000);
   const fadeStepMs = 50;
   const totalSteps = fadeDurationMs / fadeStepMs;
@@ -687,13 +818,15 @@ function startCrossfade(nextSong) {
       }
 
       const nextTitle = nextSong.title || "Audio Track";
-      const nextArtist = nextSong.artist ? (nextSong.artist + " • Designed by Raj Pawar") : "BOOSTER V0.9 • Designed by Raj Pawar";
+      const nextArtist = nextSong.artist ? (nextSong.artist + " • Designed by Raj Pawar") : "BOOSTER V1.0 • Designed by Raj Pawar";
       setTextSafe('mini-title', nextTitle);
       setTextSafe('mini-artist', nextArtist);
       setTextSafe('modal-title', nextTitle);
       setTextSafe('modal-artist', nextArtist);
       setTextSafe('np-title', nextTitle);
       setTextSafe('np-artist', nextArtist);
+      setTextSafe('lyrics-fs-title', nextTitle);
+      setTextSafe('lyrics-fs-artist', nextArtist);
 
       updateMoodLighting(nextSong);
       showToast(`Now Playing: ${nextTitle}`);
@@ -701,6 +834,7 @@ function startCrossfade(nextSong) {
       syncFavoriteButtons();
       updateQueueAndHistoryUI();
       syncActiveCardHighlight();
+      renderLyricsPanel(nextSong);
     }
   }, fadeStepMs);
 }
@@ -709,11 +843,92 @@ function updatePlaybackUI(isPlaying) {
   const btn = document.getElementById('master-play-btn');
   const modalBtn = document.getElementById('modal-play-btn');
   const icon = isPlaying ? ICON_PAUSE : ICON_PLAY;
-  if (btn) btn.innerHTML = icon;
-  if (modalBtn) modalBtn.innerHTML = icon;
+  if (btn) { btn.innerHTML = icon; btn.setAttribute('aria-pressed', String(isPlaying)); }
+  if (modalBtn) { modalBtn.innerHTML = icon; modalBtn.setAttribute('aria-pressed', String(isPlaying)); }
   if ('mediaSession' in navigator) {
     navigator.mediaSession.playbackState = isPlaying ? 'playing' : 'paused';
   }
+}
+
+// ===== Synced Lyrics Engine =====
+function parseLRC(lrcText) {
+  const lines = lrcText.split('\n');
+  const timeTagRe = /\[(\d{2}):(\d{2})(?:\.(\d{1,3}))?\]/g;
+  const result = [];
+  lines.forEach(rawLine => {
+    const tags = [...rawLine.matchAll(timeTagRe)];
+    if (tags.length === 0) return;
+    const text = rawLine.replace(timeTagRe, '').trim();
+    tags.forEach(tag => {
+      const mins = parseInt(tag[1], 10);
+      const secs = parseInt(tag[2], 10);
+      const frac = tag[3] ? parseFloat(`0.${tag[3]}`) : 0;
+      const time = mins * 60 + secs + frac;
+      result.push({ time, text });
+    });
+  });
+  return result.sort((a, b) => a.time - b.time);
+}
+
+function getLyricsForSong(song) {
+  if (!song || !LYRICS_DB[song.file]) return null;
+  if (lyricsParseCache.has(song.file)) return lyricsParseCache.get(song.file);
+  const parsed = parseLRC(LYRICS_DB[song.file]);
+  lyricsParseCache.set(song.file, parsed);
+  return parsed;
+}
+
+function renderLyricsPanel(song) {
+  currentLyricLineIndex = -1;
+  const lines = getLyricsForSong(song);
+  const targets = [
+    document.getElementById('lyrics-list'),
+    document.getElementById('lyrics-fullscreen-list')
+  ];
+  targets.forEach(container => {
+    if (!container) return;
+    if (!lines || lines.length === 0) {
+      container.innerHTML = `<p class="lyrics-empty-state">Synced lyrics haven't been added for this track yet. Drop a licensed .lrc transcript into LYRICS_DB to enable this view — no audio processing required.</p>`;
+      return;
+    }
+    container.innerHTML = lines.map((line, idx) =>
+      `<p class="lyrics-line" data-idx="${idx}" data-time="${line.time}">${escapeHtml(line.text || '···')}</p>`
+    ).join('');
+  });
+}
+
+function updateLyricsHighlight(currentTime) {
+  const song = (displayedList.length > 0 ? displayedList : getActiveList())[currentSongIndex];
+  const lines = getLyricsForSong(song);
+  if (!lines || lines.length === 0) return;
+
+  let idx = -1;
+  for (let i = 0; i < lines.length; i++) {
+    if (lines[i].time <= currentTime) idx = i; else break;
+  }
+  if (idx === currentLyricLineIndex) return;
+  currentLyricLineIndex = idx;
+
+  [document.getElementById('lyrics-list'), document.getElementById('lyrics-fullscreen-list')].forEach(container => {
+    if (!container) return;
+    container.querySelectorAll('.lyrics-line').forEach(el => el.classList.remove('active'));
+    const activeEl = container.querySelector(`.lyrics-line[data-idx="${idx}"]`);
+    if (activeEl) {
+      activeEl.classList.add('active');
+      if (Date.now() - lastLyricsUserScroll > 4000) {
+        activeEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      }
+    }
+  });
+}
+
+function openLyricsFullscreen() {
+  const overlay = document.getElementById('lyrics-fullscreen');
+  openModalAccessible(overlay);
+}
+function closeLyricsFullscreen() {
+  const overlay = document.getElementById('lyrics-fullscreen');
+  closeModalAccessible(overlay);
 }
 
 // ===== Grid rendering (event delegation, no full rebuild on every song change) =====
@@ -746,7 +961,7 @@ function renderTrendingGrid() {
         <div class="track-artist">${escapeHtml(displayArtist)}</div>
       </div>
       <div class="track-actions">
-        <button class="card-heart-btn ${isFavorite(song) ? 'is-fav' : ''}" data-fav-idx="${index}" aria-label="Toggle favorite">${isFavorite(song) ? ICON_HEART_FILLED : ICON_HEART_OUTLINE}</button>
+        <button class="card-heart-btn ${isFavorite(song) ? 'is-fav' : ''}" data-fav-idx="${index}" aria-label="Toggle favorite" aria-pressed="${isFavorite(song)}">${isFavorite(song) ? ICON_HEART_FILLED : ICON_HEART_OUTLINE}</button>
         <button class="add-queue-btn" data-queue-idx="${index}">+ Queue</button>
       </div>`;
     grid.appendChild(card);
@@ -783,6 +998,7 @@ function renderTrendingGrid() {
     const idx = cards.indexOf(document.activeElement);
     if (idx === -1) return;
     e.preventDefault();
+    e.stopPropagation();
     let target = idx;
     if (e.key === 'ArrowDown' || e.key === 'ArrowRight') target = Math.min(cards.length - 1, idx + 1);
     if (e.key === 'ArrowUp' || e.key === 'ArrowLeft') target = Math.max(0, idx - 1);
@@ -805,7 +1021,7 @@ function setupMediaSession(song) {
     navigator.mediaSession.metadata = new MediaMetadata({
       title: song.title || 'Unknown Track',
       artist: song.artist || 'BOOSTER Audio',
-      album: 'BOOSTER V0.9'
+      album: 'BOOSTER V1.0'
     });
     navigator.mediaSession.setActionHandler('play', () => togglePlay(true));
     navigator.mediaSession.setActionHandler('pause', () => togglePlay(false));
@@ -845,7 +1061,8 @@ function saveSettings() {
     pan: pannerNode ? pannerNode.pan.value : pendingPan,
     eq: eqNodes.length ? eqNodes.map(n => n.gain.value) : pendingEq,
     shuffle: shuffleMode,
-    repeat: repeatMode
+    repeat: repeatMode,
+    speed: playbackSpeed
   };
   localStorage.setItem('booster_settings', JSON.stringify(settings));
 }
@@ -864,6 +1081,7 @@ function loadSettingsIntoState() {
   pendingEq = Array.isArray(s.eq) ? s.eq : pendingEq;
   shuffleMode = !!s.shuffle;
   repeatMode = s.repeat || 'all';
+  playbackSpeed = typeof s.speed === 'number' ? s.speed : 1;
 }
 
 function applySettingsToUI() {
@@ -905,18 +1123,28 @@ function applySettingsToUI() {
     if (disp) disp.textContent = `${val > 0 ? '+' : ''}${val}dB`;
   });
 
+  const speedSlider = document.getElementById('speed-slider');
+  const speedDisp = document.getElementById('speed-val');
+  if (speedSlider) speedSlider.value = playbackSpeed;
+  if (speedDisp) speedDisp.textContent = `${playbackSpeed.toFixed(2).replace(/\.?0+$/, '') || playbackSpeed}x`;
+  const modalSpeedBtn = document.getElementById('modal-speed-btn');
+  if (modalSpeedBtn) modalSpeedBtn.textContent = `${playbackSpeed}x`;
+  playerA.playbackRate = playbackSpeed;
+  playerB.playbackRate = playbackSpeed;
+
   syncShuffleRepeatUI();
 }
 
 function syncShuffleRepeatUI() {
   [document.getElementById('shuffle-btn'), document.getElementById('modal-shuffle-btn')].forEach(btn => {
-    if (btn) btn.classList.toggle('active-state', shuffleMode);
+    if (btn) { btn.classList.toggle('active-state', shuffleMode); btn.setAttribute('aria-pressed', String(shuffleMode)); }
   });
   const repeatIcons = { none: '🔁', all: '🔁', one: '🔂' };
   [document.getElementById('repeat-btn'), document.getElementById('modal-repeat-btn')].forEach(btn => {
     if (!btn) return;
     btn.textContent = repeatIcons[repeatMode] || '🔁';
     btn.classList.toggle('active-state', repeatMode !== 'none');
+    btn.setAttribute('aria-pressed', String(repeatMode !== 'none'));
     btn.title = `Repeat: ${repeatMode}`;
   });
 }
@@ -1093,6 +1321,20 @@ function bindProDspControls() {
     };
   }
 
+  const speedSlider = document.getElementById('speed-slider');
+  const speedDisp = document.getElementById('speed-val');
+  if (speedSlider) {
+    speedSlider.oninput = (e) => {
+      playbackSpeed = parseFloat(e.target.value);
+      if (speedDisp) speedDisp.textContent = `${playbackSpeed}x`;
+      const modalSpeedBtn = document.getElementById('modal-speed-btn');
+      if (modalSpeedBtn) modalSpeedBtn.textContent = `${playbackSpeed}x`;
+      playerA.playbackRate = playbackSpeed;
+      playerB.playbackRate = playbackSpeed;
+      saveSettings();
+    };
+  }
+
   document.querySelectorAll('.sleep-btn:not(.cancel)').forEach(btn => {
     btn.onclick = () => startSleepTimer(parseInt(btn.dataset.min));
   });
@@ -1117,15 +1359,19 @@ document.addEventListener('DOMContentLoaded', () => {
   bindProDspControls();
   setupContinueListening();
 
-  // TV mode
+  // TV mode (manual toggle + auto-detect for smart TV browsers)
   const tvBtn = document.getElementById('tv-mode-toggle');
   if (tvBtn) {
-    const tvOn = localStorage.getItem('booster_tvmode') === 'true';
+    const storedPref = localStorage.getItem('booster_tvmode');
+    const tvOn = storedPref === 'true' || (storedPref === null && detectTVEnvironment());
     document.body.classList.toggle('tv-mode', tvOn);
     tvBtn.classList.toggle('active', tvOn);
+    tvBtn.setAttribute('aria-pressed', String(tvOn));
+    if (storedPref === null && tvOn) showToast("Smart TV detected — enlarged interface enabled");
     tvBtn.onclick = () => {
       const isOn = document.body.classList.toggle('tv-mode');
       tvBtn.classList.toggle('active', isOn);
+      tvBtn.setAttribute('aria-pressed', String(isOn));
       localStorage.setItem('booster_tvmode', isOn);
       showToast(isOn ? "TV Mode Enabled — Enlarged UI" : "TV Mode Disabled");
     };
@@ -1145,21 +1391,65 @@ document.addEventListener('DOMContentLoaded', () => {
   const masterBar = document.getElementById('master-player-bar');
   const playerModal = document.getElementById('player-modal');
   const modalClose = document.getElementById('modal-close-btn');
+  const lyricsOverlay = document.getElementById('lyrics-fullscreen');
+  const lyricsClose = document.getElementById('lyrics-fullscreen-close');
 
   if (masterBar && playerModal) {
     masterBar.onclick = (e) => {
       if (e.target.closest('button') || e.target.closest('input')) return;
-      playerModal.classList.add('active');
+      openModalAccessible(playerModal);
     };
   }
-  if (modalClose && playerModal) modalClose.onclick = () => playerModal.classList.remove('active');
+  if (modalClose && playerModal) modalClose.onclick = () => closeModalAccessible(playerModal);
+  if (lyricsClose && lyricsOverlay) lyricsClose.onclick = () => closeModalAccessible(lyricsOverlay);
 
-  let touchStartY = 0;
+  [document.getElementById('lyrics-expand-btn'), document.getElementById('modal-lyrics-btn'), document.getElementById('np-lyrics-btn')].forEach(btn => {
+    if (btn) btn.onclick = () => openLyricsFullscreen();
+  });
+
+  const modalSpeedBtn = document.getElementById('modal-speed-btn');
+  if (modalSpeedBtn) {
+    modalSpeedBtn.onclick = () => {
+      const idx = SPEED_STEPS.indexOf(playbackSpeed);
+      playbackSpeed = SPEED_STEPS[(idx + 1) % SPEED_STEPS.length];
+      if (playbackSpeed === -1 || idx === -1) playbackSpeed = 1;
+      playerA.playbackRate = playbackSpeed;
+      playerB.playbackRate = playbackSpeed;
+      modalSpeedBtn.textContent = `${playbackSpeed}x`;
+      const speedSlider = document.getElementById('speed-slider');
+      const speedDisp = document.getElementById('speed-val');
+      if (speedSlider) speedSlider.value = playbackSpeed;
+      if (speedDisp) speedDisp.textContent = `${playbackSpeed}x`;
+      saveSettings();
+      showToast(`Playback Speed: ${playbackSpeed}x`);
+    };
+  }
+
+  let touchStartY = 0, touchStartX = 0;
   if (playerModal) {
-    playerModal.addEventListener('touchstart', (e) => { touchStartY = e.touches[0].clientY; }, { passive: true });
+    playerModal.addEventListener('touchstart', (e) => {
+      touchStartY = e.touches[0].clientY;
+      touchStartX = e.touches[0].clientX;
+    }, { passive: true });
     playerModal.addEventListener('touchend', (e) => {
       const touchEndY = e.changedTouches[0].clientY;
-      if (touchEndY - touchStartY > 80) playerModal.classList.remove('active');
+      if (touchEndY - touchStartY > 80) closeModalAccessible(playerModal);
+    }, { passive: true });
+  }
+  if (lyricsOverlay) {
+    lyricsOverlay.addEventListener('touchstart', (e) => { touchStartY = e.touches[0].clientY; }, { passive: true });
+    lyricsOverlay.addEventListener('touchend', (e) => {
+      const touchEndY = e.changedTouches[0].clientY;
+      if (touchEndY - touchStartY > 80) closeModalAccessible(lyricsOverlay);
+    }, { passive: true });
+  }
+
+  // Mini player swipe left/right for next/prev (mobile)
+  if (masterBar) {
+    masterBar.addEventListener('touchstart', (e) => { touchStartX = e.touches[0].clientX; }, { passive: true });
+    masterBar.addEventListener('touchend', (e) => {
+      const dx = e.changedTouches[0].clientX - touchStartX;
+      if (Math.abs(dx) > 60) { dx < 0 ? playNext() : playPrev(); }
     }, { passive: true });
   }
 
@@ -1168,8 +1458,14 @@ document.addEventListener('DOMContentLoaded', () => {
     if (e.code === 'Space') { e.preventDefault(); document.getElementById('master-play-btn')?.click(); }
     else if (e.code === 'ArrowRight') { if (activeAudio.duration) activeAudio.currentTime = Math.min(activeAudio.currentTime + 5, activeAudio.duration); }
     else if (e.code === 'ArrowLeft') { activeAudio.currentTime = Math.max(activeAudio.currentTime - 5, 0); }
+    else if (e.code === 'ArrowUp') { e.preventDefault(); globalVolume = Math.min(1, globalVolume + 0.05); activeAudio.volume = globalVolume; const vs = document.getElementById('master-volume'); if (vs) vs.value = globalVolume; saveSettings(); }
+    else if (e.code === 'ArrowDown') { e.preventDefault(); globalVolume = Math.max(0, globalVolume - 0.05); activeAudio.volume = globalVolume; const vs = document.getElementById('master-volume'); if (vs) vs.value = globalVolume; saveSettings(); }
     else if (e.key === 'm' || e.key === 'M') { activeAudio.muted = !activeAudio.muted; showToast(activeAudio.muted ? "Muted" : "Unmuted"); }
-    else if (e.key === 'Escape') { if (playerModal) playerModal.classList.remove('active'); }
+    else if (e.key === 'l' || e.key === 'L') { const overlay = document.getElementById('lyrics-fullscreen'); overlay?.classList.contains('active') ? closeLyricsFullscreen() : openLyricsFullscreen(); }
+    else if (e.key === 'Escape') {
+      if (lyricsOverlay?.classList.contains('active')) closeLyricsFullscreen();
+      else if (playerModal?.classList.contains('active')) closeModalAccessible(playerModal);
+    }
   });
 
   function switchCategory(cat, btnEl) {
@@ -1236,11 +1532,26 @@ document.addEventListener('DOMContentLoaded', () => {
 
   const tabUpNext = document.getElementById('tab-upnext');
   const tabHistory = document.getElementById('tab-history');
+  const tabLyrics = document.getElementById('tab-lyrics');
   const upnextCont = document.getElementById('upnext-container');
   const historyCont = document.getElementById('history-container');
-  if (tabUpNext && tabHistory) {
-    tabUpNext.onclick = () => { tabUpNext.classList.add('active'); tabHistory.classList.remove('active'); upnextCont.style.display = 'block'; historyCont.style.display = 'none'; };
-    tabHistory.onclick = () => { tabHistory.classList.add('active'); tabUpNext.classList.remove('active'); historyCont.style.display = 'block'; upnextCont.style.display = 'none'; };
+  const lyricsCont = document.getElementById('lyrics-container');
+  function activateQueueTab(target) {
+    [tabUpNext, tabHistory, tabLyrics].forEach(t => t?.classList.remove('active'));
+    [upnextCont, historyCont, lyricsCont].forEach(c => { if (c) c.style.display = 'none'; });
+    target.tab?.classList.add('active');
+    if (target.cont) target.cont.style.display = 'block';
+  }
+  if (tabUpNext) tabUpNext.onclick = () => activateQueueTab({ tab: tabUpNext, cont: upnextCont });
+  if (tabHistory) tabHistory.onclick = () => activateQueueTab({ tab: tabHistory, cont: historyCont });
+  if (tabLyrics) tabLyrics.onclick = () => activateQueueTab({ tab: tabLyrics, cont: lyricsCont });
+
+  if (lyricsCont) {
+    lyricsCont.addEventListener('scroll', () => { lastLyricsUserScroll = Date.now(); }, { passive: true });
+  }
+  const lyricsFsList = document.getElementById('lyrics-fullscreen-list');
+  if (lyricsFsList) {
+    lyricsFsList.addEventListener('scroll', () => { lastLyricsUserScroll = Date.now(); }, { passive: true });
   }
 
   function switchView(targetView) {
@@ -1256,6 +1567,14 @@ document.addEventListener('DOMContentLoaded', () => {
   document.querySelectorAll('.mobile-nav-item[data-target]').forEach(btn => {
     btn.addEventListener('click', () => switchView(btn.dataset.target));
   });
+
+  // Roving-focus groups for keyboard / TV remote navigation
+  enableRovingFocus(document.querySelector('.nav-routes'), '.nav-item', { horizontal: false, vertical: true });
+  enableRovingFocus(document.querySelector('.category-filters'), '.filter-chip', { horizontal: true });
+  enableRovingFocus(document.querySelector('.player-controls'), '.icon-btn', { horizontal: true });
+  enableRovingFocus(document.querySelector('.modal-controls'), '.icon-btn', { horizontal: true });
+  enableRovingFocus(document.querySelector('.mobile-tabbar'), '.mobile-nav-item', { horizontal: true });
+  enableRovingFocus(document.querySelector('.tab-controls'), '.queue-tab', { horizontal: true });
 
   togglePlay = (forceState) => {
     ensureAudioEngine();
